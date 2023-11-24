@@ -307,7 +307,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 	}
 
 	/**
-	 * Check Coinbase webhook request is valid.
+	 * Check Ebioro webhook request is valid.
 	 * 
 	 * @param  string $payload
 	 */
