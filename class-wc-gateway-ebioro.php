@@ -37,12 +37,8 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
         $this->order_button_text  = __('Proceed to Ebioro', 'ebioro');
         $this->method_title       = __('Ebioro', 'ebioro');
         $this->method_description = '<p>' .
-            __('A payment gateway that sends your customers to Ebioro to pay with cryptocurrency.', 'ebioro') .
-            '</p><p>' .
-            sprintf(
-                __('If you do not currently have a Ebioro account, you can set one up here: %s', 'ebioro'),
-                '<a target="_blank" href="https://ebioro.com/">https://ebioro.com/</a>'
-            );
+            __('A payment gateway allows your customers to pay with the ebioro wallet', 'ebioro');
+       
 
         $this->init_form_fields();
         $this->init_settings();
@@ -90,14 +86,14 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 
 		$image_path = plugin_dir_path( __FILE__ ) . 'assets/images';
 		$icon_html  = '';
-		$methods    = get_option( 'ebioro_payment_methods', array('usdc' ) );
+		$methods    = get_option( 'ebioro_payment_methods', array('ebioro' ) );
 
 		// Load icon for each available payment method.
 		foreach ( $methods as $m ) {
 			$path = realpath( $image_path . '/' . $m . '.png' );
 			if ( $path && dirname( $path ) === $image_path && is_file( $path ) ) {
 				$url        = WC_HTTPS::force_https_url( plugins_url( '/assets/images/' . $m . '.png', __FILE__ ) );
-				$icon_html .= '<img width="26" src="' . esc_attr( $url ) . '" alt="' . esc_attr__( $m, 'ebioro' ) . '" />';
+				$icon_html .= '<img width="40" src="' . esc_attr( $url ) . '" alt="' . esc_attr__( $m, 'ebioro' ) . '" />';
 			}
 		}
 
@@ -123,7 +119,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
                 'title' => __('Title', 'woocommerce'),
                 'type' => 'text',
                 'description' => __('This controls the title which the user sees during checkout.', 'woocommerce'),
-                'default' => __('Bitcoin and other cryptocurrencies', 'ebioro'),
+                'default' => __('Ebioro wallet', 'ebioro'),
                 'desc_tip' => true,
             ),
             'description' => array(
@@ -131,7 +127,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
                 'type' => 'text',
                 'desc_tip' => true,
                 'description' => __('This controls the description which the user sees during checkout.', 'woocommerce'),
-                'default' => __( 'Pay with Bitcoin or other cryptocurrencies.', 'ebioro' ),
+                'default' => __( 'Pay with ease using the ebioro wallet.', 'ebioro' ),
             ),
             'api_key' => array(
                 'title' => __('API Key', 'ebioro'),
@@ -159,11 +155,9 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 	 * @param  int $order_id
 	 * @return array
 	 */
-	public function process_payment( \WC_Order $order, \WP_REST_Request $request ) {
+	public function process_payment( $order_id) {
 		
-		$context = new PaymentContext();
-		$result  = new PaymentResult();
-		//$order = wc_get_order( $order_id );
+		$order = wc_get_order( $order_id );
 
 		// Create description for charge based on order's products. Ex: 1 x Product1, 2 x Product2
 		try {
@@ -187,22 +181,41 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 		$result   = Ebioro_API_Handler::create_payment(
 			$order->get_total(), get_woocommerce_currency(), $metadata,
 			$this->get_return_url( $order ), null, $description,
-			$this->get_cancel_url( $order )
+			$this->get_cancel_url( $order),
+			$this->get_webhook_url()
 		);
 
-		if ( ! $result[0] ) {
+		error_log("API Result: " . print_r($result, true));
+		
+		if ( ! $result['resource'] ) {
 			return array( 'result' => 'fail' );
 		}
 
-		$payment = $result[1]['data'];
+		// $payment = $result[1]['data'];
 
-		$order->update_meta_data( '_ebioro_payment_id', $payment['id'] );
+		$order->update_meta_data( '_ebioro_payment_id', $result['id'] );
 		$order->save();
 
 		return array(
 			'result'   => 'success',
-			'redirect' => $payment['hosted_url'],
+			'redirect' => $result['hostedUrl'],
 		);
+	}
+
+	/**
+	 * Get the return url (thank you page).
+	 *
+	 * @param WC_Order $order Order object.
+	 * @return string
+	 */
+	public function get_return_url($order = null) {
+		if ($order) {
+			$return_url = $order->get_checkout_order_received_url();
+		} else {
+			$return_url = wc_get_endpoint_url('order-received', '', wc_get_checkout_url());
+		}
+
+		return apply_filters('woocommerce_get_return_url', $return_url, $order);
 	}
 
 	/**
@@ -211,18 +224,23 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 	 * @param WC_Order $order Order object.
 	 * @return string
 	 */
-	public function get_cancel_url( $order ) {
+	public function get_cancel_url($order) {
 		$return_url = $order->get_cancel_order_url();
 
-		if ( is_ssl() || get_option( 'woocommerce_force_ssl_checkout' ) == 'yes' ) {
-			$return_url = str_replace( 'http:', 'https:', $return_url );
+		if (is_ssl() || get_option('woocommerce_force_ssl_checkout') == 'yes') {
+			$return_url = str_replace('http:', 'https:', $return_url);
 		}
 
-		/** DOCBLOCK - Makes linter happy.
-		 * 
-		 * @since today
-		*/
-		return apply_filters( 'woocommerce_get_cancel_url', $return_url, $order );
+		return apply_filters('woocommerce_get_cancel_url', $return_url, $order);
+	}
+
+	/**
+	 * Ge the webhook url.
+	 *
+	 * @return string
+	 */
+	public function get_webhook_url() {
+		return add_query_arg('wc-api', 'WC_Gateway_Ebioro', trailingslashit(get_home_url()));
 	}
 
 	/**
@@ -270,26 +288,64 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 	 * Handle requests sent to webhook.
 	 */
 	public function handle_webhook() {
-		$payload = file_get_contents( 'php://input' );
-		if ( ! empty( $payload ) && $this->validate_webhook( $payload ) ) {
-			$data       = json_decode( $payload, true );
-			$event_data = $data['event']['data'];
 
-			self::log( 'Webhook received event: ' . print_r( $data, true ) );
-
-			if ( ! isset( $event_data['metadata']['order_id'] ) ) {
-				// Probably a charge not created by us.
-				exit;
-			}
-
-			$order_id = $event_data['metadata']['order_id'];
-
-			$this->_update_order_status( wc_get_order( $order_id ), $event_data['timeline'] );
-
-			exit;  // 200 response for acknowledgement.
+		if (('POST' !== $_SERVER['REQUEST_METHOD'])
+		     || !isset($_GET['wc-api'])
+		     || ('WC_Gateway_Ebioro' !== $_GET['wc-api'])
+		) {
+			return;
 		}
 
+		$payload = file_get_contents( 'php://input' );
+		$request_headers = array_change_key_case($this->get_request_headers(), CASE_UPPER);
+
+		if (empty($payload) || !$this->validate_webhook($request_headers, $payload)) {
+            WS_Logging_Service::write('Incoming webhook failed validation: ' . print_r( $payload, true));
+            status_header(401);
+            exit;
+        }
+
+		$payload_decoded = json_decode($payload, true);
+
+		self::log( 'Webhook received event: ' . print_r( $payload_decoded, true ) );
+
+		$event_data = $payload_decoded['data'];
+
+		if ( ! isset( $event_data['metadata']['order_id'] ) ) {
+			// Probably a payment not created by us.
+			status_header(401);
+			exit;
+		}
+
+		$order_id = $event_data['metadata']['order_id'];
+
+	    $this->_update_order_status(wc_get_order( $order_id ), $event_data['updatedAt'] );
+		status_header(200);
+		exit;  // 200 response for acknowledgement.
+	
+
 		wp_die( 'Ebioro Webhook Request Failure', 'Ebioro Webhook', array( 'response' => 500 ) );
+	}
+
+	/**
+	 * Gets the incoming request headers. Some servers are not using
+	 * Apache and "getallheaders()" will not work so we may need to
+	 * build our own headers.
+	 */
+	public function get_request_headers() {
+		if (!function_exists('getallheaders')) {
+			$headers = array();
+
+			foreach ($_SERVER as $name => $value ) {
+				if ('HTTP_' === substr($name, 0, 5)) {
+					$headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+				}
+			}
+
+			return $headers;
+		} else {
+			return getallheaders();
+		}
 	}
 
 	/**
@@ -300,14 +356,14 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 	public function validate_webhook( $payload ) {
 		self::log( 'Checking Webhook response is valid' );
 
-		if ( ! isset( $_SERVER['HTTP_X_EB_WEBHOOK_SIGNATURE'] ) ) {
+		if (!isset($request_headers['X-WEBHOOK-AUTH'])) {
 			return false;
 		}
 
-		$sig = $_SERVER['HTTP_X_EB_WEBHOOK_SIGNATURE'];
+		$sig = $request_headers['X-WEBHOOK-AUTH'];
 
 		$api_secret = $this->get_option( 'api_secret' );
-
+		
 		$sig2 = hash_hmac( 'sha256', $payload, $api_secret );
 
 		if ( $sig === $sig2 ) {

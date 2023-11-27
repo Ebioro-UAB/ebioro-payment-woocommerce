@@ -21,7 +21,7 @@ class Ebioro_API_Handler {
      *
      * @var string Ebioro API url.
      */
-    public static $api_url = 'https://test-merchant.ebioro.com/';
+    public static $api_url = 'https://test-merchant.ebioro.com';
 
     /**
      * Ebioro API version
@@ -120,7 +120,7 @@ class Ebioro_API_Handler {
     }
 
     /**
-     * Create a new charge request.
+     * Create a new payment request.
      *
      * @param int    $amount
      * @param string $currency
@@ -133,7 +133,7 @@ class Ebioro_API_Handler {
      * @return array
      */
     public static function create_payment($amount = null, $currency = null, $metadata = null,
-                                          $redirect = null, $name = null, $desc = null, $cancel = null) {
+                                          $redirect = null, $name = null, $desc = null, $cancel = null,$webhook = null) {
         $args = array(
             'name'        => is_null($name) ? get_bloginfo('name') : $name,
             'description' => is_null($desc) ? get_bloginfo('description') : $desc,
@@ -158,13 +158,17 @@ class Ebioro_API_Handler {
             $args['metadata'] = $metadata;
         }
         if (!is_null($redirect)) {
-            $args['redirect_url'] = $redirect;
+            $args['redirectUrl'] = $redirect;
         }
         if (!is_null($cancel)) {
-            $args['cancel_url'] = $cancel;
+            $args['cancelUrl'] = $cancel;
+        }
+        if (!is_null($webhook)){
+            $args['webhookUrl'] = $cancel;
+
         }
 
-        $result = self::send_request('payments', $args, 'POST');
+        $result = self::send_request('/payments', $args, 'POST');
 
         return $result;
     }
@@ -181,14 +185,14 @@ class Ebioro_API_Handler {
     private static function buildAuthHeaders($path, $method, $params = array()) {
         $timestamp = time();
         $body = $method != 'GET' ? (count($params) ? json_encode($params) : null) : null;
-        $origin = isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : null;
+        //$origin = isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : null;
 
         return array(
             'X-Digest-Key: ' . self::$api_key,
             'X-Digest-Signature: ' . hash_hmac('sha256', $path . $timestamp . $method . $body, self::$api_secret),
             'X-Digest-Timestamp: ' . $timestamp,
-            'X-Origin-URL: ' . $origin,
-            'X-API-Version: ' . self::$api_version,
+            //'X-Origin-URL: ' . $origin,
+            //'X-API-Version: ' . self::$api_version,
         );
     }
 }

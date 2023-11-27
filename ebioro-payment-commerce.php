@@ -10,10 +10,15 @@
  * WC tested up to: 8.2.1
  */
 
+ if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+ }
+
 /**
  * Initialize Ebioro gateway and related WooCommerce features.
  */
 function eb_init_gateway() {
+    
     if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
         require_once plugin_dir_path(__FILE__) . 'class-wc-gateway-ebioro.php';
         add_action('init', 'eb_wc_register_blockchain_status');
@@ -42,6 +47,56 @@ function eb_deactivation() {
     wp_clear_scheduled_hook('eb_check_orders');
 }
 register_deactivation_hook(__FILE__, 'eb_deactivation');
+
+/**
+ * We need to check how the block integration works. Below some links.
+ */
+
+// Mollie: https://github.com/mollie/WooCommerce/blob/eacc3c48ca529c680a4681b736ada3b0e0a3edc2/src/Assets/MollieCheckoutBlocksSupport.php
+// Stripe https://github.com/woocommerce/woocommerce-gateway-stripe/blob/58e2f12d9beb718d7e4eb4f4a44e361d6b8b9691/includes/class-wc-stripe-blocks-support.php
+
+// block support documentation from WooCommerce here https://developer.woo.com/2022/07/07/exposing-payment-options-in-the-checkout-block/ and here 
+
+// add_action( 'woocommerce_blocks_loaded', 'woocommerce_gateway_ebioro_woocommerce_block_support' );
+
+// function woocommerce_gateway_ebioro_woocommerce_block_support() {
+// 	if ( class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) ) {
+//         require_once dirname(__FILE__) . '/includes/class-wc-ebioro-blocks-support.php';
+	
+// 		add_action(
+// 			'woocommerce_blocks_payment_method_type_registration',
+// 			function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry ) {
+
+// 				$container = Automattic\WooCommerce\Blocks\Package::container();
+// 				// registers as shared instance.
+// 				$container->register(
+// 					WC_Gateway_Ebioro_Blocks_Support::class,
+// 					function() {
+// 						if ( class_exists( 'WC_Gateway_Ebioro' ) ) {
+// 							return new WC_Gateway_Ebioro_Blocks_Support( WC_Gateway_Ebioro::get_instance()->payment_request_configuration );
+// 						} else {
+// 							return new WC_Gateway_Ebioro_Blocks_Support();
+// 						}
+// 					}
+// 				);
+// 				$payment_method_registry->register(
+// 					$container->get( WC_Gateway_Ebioro_Blocks_Support::class )
+// 				);
+// 			},
+// 			5
+// 		);
+// 	}
+// }
+
+add_action(
+	'before_woocommerce_init',
+	function() {
+		if ( class_exists( '\Automattic\WooCommerce\Utilities\FeaturesUtil' ) ) {
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+		}
+	}
+);
+
 
 // WooCommerce
 
