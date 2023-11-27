@@ -82,13 +82,22 @@ class Ebioro_API_Handler {
             $url = add_query_arg($params, $url);
         }
 
+        self::log('Ebioro Request arguments for ' . $endpoint . ': ' . print_r($args, true));
+
         $response = wp_remote_request(esc_url_raw($url), $args);
 
         if (is_wp_error($response)) {
             self::log('WP response error: ' . $response->get_error_message());
             return array(false, $response->get_error_message());
         } else {
+            
             $result = json_decode($response['body'], true);
+
+            if ($result === null && json_last_error() !== JSON_ERROR_NONE) {
+                self::log('Error decoding JSON response: ' . json_last_error_msg());
+                return array(false, 'Error decoding JSON response.');
+            }
+
             if (!empty($result['warnings'])) {
                 foreach ($result['warnings'] as $warning) {
                     self::log('API Warning: ' . $warning);
@@ -132,44 +141,50 @@ class Ebioro_API_Handler {
      *
      * @return array
      */
-    public static function create_payment($amount = null, $currency = null, $metadata = null,
-                                          $redirect = null, $name = null, $desc = null, $cancel = null,$webhook = null) {
-        $args = array(
-            'name'        => is_null($name) ? get_bloginfo('name') : $name,
-            'description' => is_null($desc) ? get_bloginfo('description') : $desc,
-        );
-        $args['name'] = sanitize_text_field($args['name']);
-        $args['description'] = sanitize_text_field($args['description']);
-
+    public static function create_payment(
+        $amount = null,
+        $currency = null,
+        $metadata = null,
+        $redirect = null,
+        $name = null,
+        $desc = null,
+        $cancelUrl = null,
+        $webhookUrl = null
+    ) {
+        // Initialize $args as an associative array.
+        $args = [];
+    
+        // Set 'name' and 'description' in $args.
+        $args['name'] = is_null($name) ? get_bloginfo('name') : $name;
+        $args['description'] = sanitize_text_field(is_null($desc) ? get_bloginfo('description') : $desc);
+    
+        // Validate and set 'amount' and 'currency' in $args.
         if (is_null($amount)) {
             self::log('Error: amount cannot be missing (in create_payment()).', 'error');
-            return array(false, 'Missing amount.');
+            return [false, 'Missing amount.'];
         } elseif (is_null($currency)) {
             self::log('Error: if amount is given, currency must be given (in create_payment()).', 'error');
-            return array(false, 'Missing currency.');
+            return [false, 'Missing currency.'];
         } else {
-            $args['amount'] = array(
-                'value'   => $amount,
+            $args['amount'] = [
+                'value' => is_numeric($amount) ? (float)$amount : 0.0,
                 'currency' => $currency,
-            );
+            ];
         }
 
-        if (!is_null($metadata)) {
-            $args['metadata'] = $metadata;
+        $args['redirectUrl'] = $redirect;
+    
+        // Set optional parameters in $args.
+        $optionalParams = ['metadata', 'cancelUrl', 'webhookUrl'];
+        foreach ($optionalParams as $param) {
+            if (!is_null($$param)) {
+                $args[$param] = $$param;
+            }
         }
-        if (!is_null($redirect)) {
-            $args['redirectUrl'] = $redirect;
-        }
-        if (!is_null($cancel)) {
-            $args['cancelUrl'] = $cancel;
-        }
-        if (!is_null($webhook)){
-            $args['webhookUrl'] = $cancel;
-
-        }
-
+    
+        // Make the API request.
         $result = self::send_request('/payments', $args, 'POST');
-
+    
         return $result;
     }
 
@@ -185,14 +200,29 @@ class Ebioro_API_Handler {
     private static function buildAuthHeaders($path, $method, $params = array()) {
         $timestamp = time();
         $body = $method != 'GET' ? (count($params) ? json_encode($params) : null) : null;
-        //$origin = isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : null;
+        $origin = isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : null;
+        $normalizedBody = json_encode(json_decode($body));
 
-        return array(
-            'X-Digest-Key: ' . self::$api_key,
-            'X-Digest-Signature: ' . hash_hmac('sha256', $path . $timestamp . $method . $body, self::$api_secret),
-            'X-Digest-Timestamp: ' . $timestamp,
-            //'X-Origin-URL: ' . $origin,
-            //'X-API-Version: ' . self::$api_version,
+        $signature = hash_hmac('sha256', $path . $timestamp . $method . $normalizedBody, self::$api_secret);
+
+        
+
+        // Debug statement
+        self::log( "Normalized Body in PHP: $normalizedBody\n");
+
+        // Debug statements
+        self::log( "Generated Signature in PHP: $signature\n");
+        self::log( "Generated Timestamp in PHP: $timestamp\n");
+        self::log( "Generated Body in PHP: $body\n");
+      
+
+        $headers = array(
+            'Content-Type'          => 'application/json',
+            'X-Digest-Key'          => self::$api_key,
+            'X-Digest-Signature'    => $signature,
+            'X-Digest-Timestamp'    => $timestamp,
         );
+
+        return $headers;
     }
 }

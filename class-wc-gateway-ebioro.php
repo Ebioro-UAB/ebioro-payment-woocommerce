@@ -186,7 +186,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 		);
 
 		error_log("API Result: " . print_r($result, true));
-		
+
 		if ( ! $result['resource'] ) {
 			return array( 'result' => 'fail' );
 		}
@@ -379,9 +379,9 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
    protected function init_api() {
 	   include_once dirname(__FILE__) . '/includes/class-ebioro-api-handler.php';
 
-	   Ebioro_API_Handler::$log     = get_class($this) . '::log';
+	   Ebioro_API_Handler::$log = get_class($this) . '::log';
 	   Ebioro_API_Handler::$api_key = $this->get_option('api_key');
-	   Ebioro_API_Handler::$api_key = $this->get_option('api_secret');
+	   Ebioro_API_Handler::$api_secret = $this->get_option('api_secret');
    }
 
 	/**
