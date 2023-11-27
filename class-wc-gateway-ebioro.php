@@ -1,22 +1,10 @@
-<?php // phpcs:disable
-/**
- * Ebioro Payments Gateway.
- *
- * Provides a Ebioro Payment Gateway.
- *
- * @class       WC_Gateway_Ebioro
- * @extends     WC_Payment_Gateway
- * @since       1.0.0
- * @package     WooCommerce/Classes/Payment
- */
+<?php
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * WC_Gateway_Ebioro Class.
- */
+
 class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 
 	/**
@@ -34,66 +22,61 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 	public static $log = false;
 
 	/**
-	 * Constructor for the gateway.
-	 */
-	public function __construct() {
-		
-		$this->id                 = 'ebioro';
+     * Timeout for archiving orders
+     *
+     * @var WC_DateTime Timeout for archiving orders
+     */
+    protected $timeout;
+
+	 /**
+     * Constructor for the gateway.
+     */
+    public function __construct() {
+        $this->id                 = 'ebioro';
         $this->has_fields         = false;
-        $this->order_button_text  = __( 'Proceed to Ebioro', 'ebioro' );
-        $this->method_title       = __( 'Ebioro', 'ebioro' );
+        $this->order_button_text  = __('Proceed to Ebioro', 'ebioro');
+        $this->method_title       = __('Ebioro', 'ebioro');
         $this->method_description = '<p>' .
-        __( 'A payment gateway that sends your customers to Ebioro to pay with cryptocurrency.', 'ebioro' )
-        . '</p><p>' .
-        sprintf(
-            
-            __( 'If you do not currently have a Ebioro account, you can set one up here: %s', 'ebioro' ),
-            '<a target="_blank" href="https://ebioro.com/">https://ebioro.com/</a>'
-        );
+            __('A payment gateway that sends your customers to Ebioro to pay with cryptocurrency.', 'ebioro') .
+            '</p><p>' .
+            sprintf(
+                __('If you do not currently have a Ebioro account, you can set one up here: %s', 'ebioro'),
+                '<a target="_blank" href="https://ebioro.com/">https://ebioro.com/</a>'
+            );
 
-    
-        // Load the settings.
-		$this->init_form_fields();
-		$this->init_settings();
+        $this->init_form_fields();
+        $this->init_settings();
 
-		// Timeout after 1 day.
-		
-		$this->timeout = ( new WC_DateTime() )->sub( new DateInterval( 'P1D' ) );
+        $this->timeout = (new WC_DateTime())->sub(new DateInterval('P1D'));
 
-		// Load the settings.
-		$this->init_form_fields();
-		$this->init_settings();
+        $this->title     = $this->get_option('title');
+        $this->description   = $this->get_option('description');
+        $this->api_key   = $this->get_option('api_key');
+        $this->api_secret    = $this->get_option('api_secret');
+        $this->debug     = 'yes' === $this->get_option('debug', 'no');
 
-		// Define user set variables.
-		$this->title = $this->get_option('title');
-        $this->description = $this->get_option( 'description' );
-        $this->api_key = $this->get_option('api_key');
-        $this->api_secret = $this->get_option('api_secret');
-        $this->debug = 'yes' === $this->get_option('debug', 'no');
-		
+        self::$log_enabled = $this->debug;
 
-		self::$log_enabled = $this->debug;
-
-		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
-		add_filter( 'woocommerce_order_data_store_cpt_get_orders_query', array( $this, '_custom_query_var' ), 10, 2 );
-		add_action( 'woocommerce_api_wc_gateway_ebioro', array( $this, 'handle_webhook' ) );
-	}
+        add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+        add_filter('woocommerce_order_data_store_cpt_get_orders_query', array($this, '_custom_query_var'), 10, 2);
+        add_action('woocommerce_api_wc_gateway_ebioro', array($this, 'handle_webhook'));
+    }
 
 	/**
-	 * Logging method.
-	 *
-	 * @param string $message Log message.
-	 * @param string $level   Optional. Default 'info'.
-	 *     emergency|alert|critical|error|warning|notice|info|debug
-	 */
-	public static function log( $message, $level = 'info' ) {
-		if ( self::$log_enabled ) {
-			if ( empty( self::$log ) ) {
-				self::$log = wc_get_logger();
-			}
-			self::$log->log( $level, $message, array( 'source' => 'ebioro' ) );
-		}
-	}
+     * Logging method.
+     *
+     * @param string $message Log message.
+     * @param string $level   Optional. Default 'info'.
+     *     emergency|alert|critical|error|warning|notice|info|debug
+     */
+    public static function log($message, $level = 'info') {
+        if (self::$log_enabled) {
+            if (empty(self::$log)) {
+                self::$log = wc_get_logger();
+            }
+            self::$log->log($level, $message, array('source' => 'ebioro'));
+        }
+    }
 
 	/**
 	 * Get gateway icon.
@@ -176,8 +159,11 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 	 * @param  int $order_id
 	 * @return array
 	 */
-	public function process_payment( $order_id ) {
-		$order = wc_get_order( $order_id );
+	public function process_payment( \WC_Order $order, \WP_REST_Request $request ) {
+		
+		$context = new PaymentContext();
+		$result  = new PaymentResult();
+		//$order = wc_get_order( $order_id );
 
 		// Create description for charge based on order's products. Ex: 1 x Product1, 2 x Product2
 		try {
@@ -331,16 +317,16 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway {
 		return false;
 	}
 
-	/**
-	 * Init the API class and set the API key etc.
-	 */
-	protected function init_api() {
-		include_once dirname( __FILE__ ) . '/includes/class-ebioro-api-handler.php';
+	/*
+	* Init the API class and set the API key etc.
+	*/
+   protected function init_api() {
+	   include_once dirname(__FILE__) . '/includes/class-ebioro-api-handler.php';
 
-		Ebioro_API_Handler::$log     = get_class( $this ) . '::log';
-		Ebioro_API_Handler::$api_key = $this->get_option( 'api_key' );
-		Ebioro_API_Handler::$api_key = $this->get_option( 'api_secret' );
-	}
+	   Ebioro_API_Handler::$log     = get_class($this) . '::log';
+	   Ebioro_API_Handler::$api_key = $this->get_option('api_key');
+	   Ebioro_API_Handler::$api_key = $this->get_option('api_secret');
+   }
 
 	/**
 	 * Update the status of an order from a given timeline.
