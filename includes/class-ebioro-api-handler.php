@@ -65,6 +65,7 @@ class Ebioro_API_Handler {
      * @return array
      */
     public static function send_request($endpoint, $params = array(), $method = 'GET') {
+        
         self::log('Ebioro Request Args for ' . $endpoint . ': ' . print_r($params, true));
 
         $authHeaders = self::buildAuthHeaders($endpoint, $method, $params);
@@ -82,7 +83,7 @@ class Ebioro_API_Handler {
             $url = add_query_arg($params, $url);
         }
 
-        self::log('Ebioro Request arguments for ' . $endpoint . ': ' . print_r($args, true));
+        // self::log('Ebioro Request arguments for ' . $endpoint . ': ' . print_r($args, true));
 
         $response = wp_remote_request(esc_url_raw($url), $args);
 
@@ -98,15 +99,15 @@ class Ebioro_API_Handler {
                 return array(false, 'Error decoding JSON response.');
             }
 
-            if (!empty($result['warnings'])) {
-                foreach ($result['warnings'] as $warning) {
-                    self::log('API Warning: ' . $warning);
-                }
-            }
+            // if (!empty($result['warnings'])) {
+            //     foreach ($result['warnings'] as $warning) {
+            //         self::log('API Warning: ' . $warning);
+            //     }
+            // }
 
-            $code = $response['response']['code'];
+            $status_code = $response['response']['code'];
 
-            if (in_array($code, array(200, 201), true)) {
+            if (in_array($status_code, array(200, 201), true)) {
                 return array(true, $result);
             } else {
                 $e = empty($result['error']['message']) ? '' : $result['error']['message'];
@@ -116,14 +117,14 @@ class Ebioro_API_Handler {
                     429 => 'Ebioro API rate limit exceeded.',
                 );
 
-                if (array_key_exists($code, $errors)) {
-                    $msg = $errors[$code];
+                if (array_key_exists($status_code, $errors)) {
+                    $msg = $errors[$status_code];
                 } else {
-                    $msg = 'Unknown response from API: ' . $code;
+                    $msg = 'Unknown response from API: ' . $status_code;
                 }
                 self::log($msg);
 
-                return array(false, $code);
+                return array(false, $status_code);
             }
         }
     }
@@ -198,22 +199,27 @@ class Ebioro_API_Handler {
      * @return array
      */
     private static function buildAuthHeaders($path, $method, $params = array()) {
+       
         $timestamp = time();
-        $body = $method != 'GET' ? (count($params) ? json_encode($params) : null) : null;
-        $origin = isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : null;
-        $normalizedBody = json_encode(json_decode($body));
+        $body = $method != 'GET' ? (count($params) ? is_string($params) ? $params : json_encode($params) : null) : null;
 
-        $signature = hash_hmac('sha256', $path . $timestamp . $method . $normalizedBody, self::$api_secret);
-
+        // this is because json_encode in php escapes forward slashes but JSON.stringify on the server does not.
+        // we therefore need to be consistent to be able to form the signature.
+        $tosign = $path . $timestamp . $method .str_replace('\/', '/', $body);
         
+      
+        $signature = hash_hmac('sha256', $tosign, self::$api_secret);
 
         // Debug statement
-        self::log( "Normalized Body in PHP: $normalizedBody\n");
+        // self::log( "Normalized Body in PHP: $body\n");
 
         // Debug statements
-        self::log( "Generated Signature in PHP: $signature\n");
-        self::log( "Generated Timestamp in PHP: $timestamp\n");
-        self::log( "Generated Body in PHP: $body\n");
+        // self::log( "Generated Signature in PHP: $signature\n");
+        // self::log( "Generated Timestamp in PHP: $timestamp\n");
+        // self::log( "Generated Body in PHP: $body\n");
+        // self::log( "Generated method in PHP: $method\n");
+        // self::log( "Generated path in PHP: $path\n");
+        // self::log( "To sign info  Body in PHP: $tosign\n");
       
 
         $headers = array(

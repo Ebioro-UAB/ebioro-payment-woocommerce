@@ -21,16 +21,16 @@ function eb_init_gateway() {
     
     if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
         require_once plugin_dir_path(__FILE__) . 'class-wc-gateway-ebioro.php';
-        add_action('init', 'eb_wc_register_blockchain_status');
+        add_action('init', 'eb_wc_register_settlement_status');
         add_filter('woocommerce_valid_order_statuses_for_payment', 'eb_wc_status_valid_for_payment', 10, 2);
         add_action('eb_check_orders', 'eb_wc_check_orders');
         add_filter('woocommerce_payment_gateways', 'eb_wc_add_ebioro_class');
         add_filter('wc_order_statuses', 'eb_wc_add_status');
         add_action('woocommerce_admin_order_data_after_order_details', 'eb_order_meta_general');
         add_action('woocommerce_order_details_after_order_table', 'eb_order_meta_general');
-        add_filter('woocommerce_email_order_meta_fields', 'eb_custom_woocommerce_email_order_meta_fields', 10, 3);
-        add_filter('woocommerce_email_actions', 'eb_register_email_action');
-        add_action('woocommerce_email', 'eb_add_email_triggers');
+        //add_filter('woocommerce_email_order_meta_fields', 'eb_custom_woocommerce_email_order_meta_fields', 10, 3);
+        // add_filter('woocommerce_email_actions', 'eb_register_email_action');
+        // add_action('woocommerce_email', 'eb_add_email_triggers');
     }
 }
 add_action('plugins_loaded', 'eb_init_gateway');
@@ -111,23 +111,23 @@ function eb_wc_check_orders() {
 }
 
 /**
- * Register new status with ID "wc-blockchainpending" and label "Blockchain Pending"
+ * Register new status with ID "wc-ebiorosettlementpending" and label "Ebioro Settlement Pending"
  */
-function eb_wc_register_blockchain_status() {
-    register_post_status('wc-blockchainpending', array(
-        'label'                     => __('Blockchain Pending', 'ebioro'),
+function eb_wc_register_settlement_status() {
+    register_post_status('wc-ebiorosettlementpending', array(
+        'label'                     => __('Ebioro Settlement Pending', 'ebioro'),
         'public'                    => true,
         'show_in_admin_status_list' => true,
         /* translators: WooCommerce order count in blockchain pending. */
-        'label_count'               => _n_noop('Blockchain pending <span class="count">(%s)</span>', 'Blockchain pending <span class="count">(%s)</span>'),
+        'label_count'               => _n_noop('Ebioro Settlement Pending <span class="count">(%s)</span>', 'Ebioro Settlement Pending <span class="count">(%s)</span>'),
     ));
 }
 
 /**
- * Register wc-blockchainpending status as valid for payment.
+ * Register wc-ebiorosettlementpending status as valid for payment.
  */
 function eb_wc_status_valid_for_payment($statuses, $order) {
-    $statuses[] = 'wc-blockchainpending';
+    $statuses[] = 'wc-ebiorosettlementpending';
     return $statuses;
 }
 
@@ -144,7 +144,7 @@ function eb_wc_add_status($wc_statuses_arr) {
         $new_statuses_arr[$id] = $label;
 
         if ('wc-pending' === $id) {  // after "Payment Pending" status.
-            $new_statuses_arr['wc-blockchainpending'] = __('Blockchain Pending', 'ebioro');
+            $new_statuses_arr['wc-ebiorosettlementpending'] = __('Ebioro Settlement Pending', 'ebioro');
         }
     }
 
@@ -178,62 +178,62 @@ function eb_order_meta_general($order) {
  * @param WC_Order $order WC order instance
  *
  */
-function eb_custom_woocommerce_email_order_meta_fields($fields, $sent_to_admin, $order) {
-    if ($order->get_payment_method() == 'ebioro') {
-        $fields['ebioro_payments_reference'] = array(
-            'label' => __('Ebioro Payments Reference #'),
-            'value' => $order->get_meta('_ebioro_payment_id'),
-        );
-    }
+// function eb_custom_woocommerce_email_order_meta_fields($fields, $sent_to_admin, $order) {
+//     if ($order->get_payment_method() == 'ebioro') {
+//         $fields['ebioro_payments_reference'] = array(
+//             'label' => __('Ebioro Payments Reference #'),
+//             'value' => $order->get_meta('_ebioro_payment_id'),
+//         );
+//     }
 
-    return $fields;
-}
+//     return $fields;
+// }
 
-/**
- * Registers "woocommerce_order_status_blockchainpending_to_processing" as a WooCommerce email action.
- *
- * @param array $email_actions
- *
- * @return array
- */
-function eb_register_email_action($email_actions) {
-    $email_actions[] = 'woocommerce_order_status_blockchainpending_to_processing';
+// /**
+//  * Registers "woocommerce_order_status_blockchainpending_to_processing" as a WooCommerce email action.
+//  *
+//  * @param array $email_actions
+//  *
+//  * @return array
+//  */
+// function eb_register_email_action($email_actions) {
+//     $email_actions[] = 'woocommerce_order_status_blockchainpending_to_processing';
 
-    return $email_actions;
-}
+//     return $email_actions;
+// }
 
 /**
  * Adds new triggers for emails sent when the order status transitions to Processing.
  *
  * @param WC_Emails $wc_emails
  */
-function eb_add_email_triggers($wc_emails) {
-    $emails = $wc_emails->get_emails();
+// function eb_add_email_triggers($wc_emails) {
+//     $emails = $wc_emails->get_emails();
 
-    /**
-     * A list of WooCommerce emails sent when the order status transitions to Processing.
-     *
-     * Developers can use the `eb_processing_order_emails` filter to add in their own emails.
-     *
-     * @param array $emails List of email class names.
-     *
-     * @return array
-     * 
-     * @since today
-     */
-    $processing_order_emails = apply_filters('eb_processing_order_emails', [
-        'WC_Email_New_Order',
-        'WC_Email_Customer_Processing_Order',
-    ]);
+//     /**
+//      * A list of WooCommerce emails sent when the order status transitions to Processing.
+//      *
+//      * Developers can use the `eb_processing_order_emails` filter to add in their own emails.
+//      *
+//      * @param array $emails List of email class names.
+//      *
+//      * @return array
+//      * 
+//      * @since today
+//      */
+//     $processing_order_emails = apply_filters('eb_processing_order_emails', [
+//         'WC_Email_New_Order',
+//         'WC_Email_Customer_Processing_Order',
+//     ]);
 
-    foreach ($processing_order_emails as $email_class) {
-        if (isset($emails[$email_class])) {
-            $email = $emails[$email_class];
+//     foreach ($processing_order_emails as $email_class) {
+//         if (isset($emails[$email_class])) {
+//             $email = $emails[$email_class];
 
-            add_action(
-                'woocommerce_order_status_blockchainpending_to_processing_notification',
-                array($email, 'trigger')
-            );
-        }
-    }
-}
+//             add_action(
+//                 'woocommerce_order_status_blockchainpending_to_processing_notification',
+//                 array($email, 'trigger')
+//             );
+//         }
+//     }
+// }
