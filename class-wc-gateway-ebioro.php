@@ -195,18 +195,20 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			$this->get_webhook_url()
 		);
 
-		error_log("API Result: " . print_r($result, true));
+		self::log("API Result: " . print_r($result, true));
 
-		if (!$result['resource']) {
+		if (!$result[1]['resource']) {
 			return array('result' => 'fail');
 		}
 
-		$order->update_meta_data('_ebioro_payment_id', $result['id']);
+		self::log("Redirect url: " . print_r($result[1]['hostedUrl'], true));
+
+		$order->update_meta_data('_ebioro_payment_id', $result[1]['id']);
 		$order->save();
 
 		return array(
 			'result' => 'success',
-			'redirect' => $result['hostedUrl'],
+			'redirect' => $result[1]['hostedUrl'],
 		);
 	}
 
