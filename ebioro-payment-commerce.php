@@ -49,6 +49,22 @@ function eb_deactivation() {
 register_deactivation_hook(__FILE__, 'eb_deactivation');
 
 /**
+ * Add Settings link in plugin list page
+ */
+function eb_add_setting_link( $actions ){
+    $args = array(
+        'page'      => 'wc-settings',
+        'tab'       => 'checkout',
+        'section'   => 'ebioro'
+    );
+    return array_merge( array(
+        'settings' => '<a href="'. add_query_arg( $args, admin_url( 'admin.php' ) ) .'">'. __( 'Settings', 'ebioro' ) .'</a>'
+    ), $actions );
+}
+add_filter( 'plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-commerce.php', 'eb_add_setting_link' );
+add_filter( 'network_admin_plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-commerce.php', 'eb_add_setting_link' );
+
+/**
  * We need to check how the block integration works. Below some links.
  */
 
