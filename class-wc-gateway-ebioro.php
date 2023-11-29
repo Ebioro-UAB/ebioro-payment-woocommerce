@@ -4,7 +4,6 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-
 class WC_Gateway_Ebioro extends WC_Payment_Gateway
 {
 
@@ -28,6 +27,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 	 * @var WC_DateTime Timeout for archiving orders
 	 */
 	protected $timeout;
+
 
 	/**
 	 * Constructor for the gateway.
@@ -286,16 +286,16 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			$payment_id = $order->get_meta('_ebioro_payment_id');
 
 			usleep(300000);  // Ensure we don't hit the rate limit.
-			$result = Ebioro_API_Handler::send_request('payments/' . $payment_id);
+			$result = Ebioro_API_Handler::send_request('/payments/' . $payment_id);
 
 			if (!$result[0]) {
 				self::log('Failed to fetch order updates for: ' . $order->get_id());
 				continue;
 			}
 
-			$timeline = $result[1]['data']['timeline'];
-			self::log('Timeline: ' . print_r($timeline, true));
-			$this->_update_order_status($order, $timeline);
+			$data = $result[1];
+			// self::log('Timeline: ' . print_r($timeline, true));
+			$this->_update_order_status($order, $data);
 		}
 	}
 
@@ -425,10 +425,6 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 	public function _update_order_status($order, $event_data)
 	{
 
-		//self::log('Webhook order to update order: ' . print_r($order, true));
-
-		// $woo_order_id = $order->get_id();
-        // $woo_order_state = $order->get_status();
         $ebioro_payload_state = $event_data['type'];
 		$ebioro_order_status = $event_data['status'];
 		$ebioro_order_settlement_status = $event_data['settlement_status'];
