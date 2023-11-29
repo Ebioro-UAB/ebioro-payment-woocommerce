@@ -144,6 +144,22 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 				'type' => 'text',
 				'description' => sprintf(__('Get your API Secret from the Ebioro Settings page.', 'ebioro'))
 			),
+			'test_mode' => array(
+				'title' => __('Enable test mode', 'ebioro'),
+				'type' => 'checkbox',
+				'label' => __('Enable test mode to work in development environment.', 'ebioro'),
+				'default' => 'no',
+			),
+			'test_api_key' => array(
+				'title' => __('Test API Key', 'ebioro'),
+				'type' => 'text',
+				'description' => __('Get your Test API Key from the Ebioro Settings page.', 'ebioro')
+			),
+			'test_api_secret' => array(
+				'title' => __('Test API Secret', 'ebioro'),
+				'type' => 'text',
+				'description' => __('Get your Test API Secret from the Ebioro Settings page.', 'ebioro')
+			),
 			'debug' => array(
 				'title' => __('Debug log', 'woocommerce'),
 				'type' => 'checkbox',
