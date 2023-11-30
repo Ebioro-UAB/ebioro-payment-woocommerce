@@ -28,6 +28,9 @@ function eb_init_gateway() {
         add_filter('wc_order_statuses', 'eb_wc_add_status');
         add_action('woocommerce_admin_order_data_after_order_details', 'eb_order_meta_general');
         add_action('woocommerce_order_details_after_order_table', 'eb_order_meta_general');
+        add_filter( 'plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-commerce.php', 'eb_add_setting_link' );
+        add_filter( 'network_admin_plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-commerce.php', 'eb_add_setting_link' );
+        add_action( 'admin_enqueue_scripts', 'eb_enqueue' );
         //add_filter('woocommerce_email_order_meta_fields', 'eb_custom_woocommerce_email_order_meta_fields', 10, 3);
         // add_filter('woocommerce_email_actions', 'eb_register_email_action');
         // add_action('woocommerce_email', 'eb_add_email_triggers');
@@ -61,8 +64,14 @@ function eb_add_setting_link( $actions ){
         'settings' => '<a href="'. add_query_arg( $args, admin_url( 'admin.php' ) ) .'">'. __( 'Settings', 'ebioro' ) .'</a>'
     ), $actions );
 }
-add_filter( 'plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-commerce.php', 'eb_add_setting_link' );
-add_filter( 'network_admin_plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-commerce.php', 'eb_add_setting_link' );
+
+/**
+ * Enqueue scripts
+ */
+function eb_enqueue(){
+    wp_register_script( 'ebioro-payment', plugin_dir_url( __FILE__ ) .'assets/js/admin/payment.js', null, null, true );
+    wp_enqueue_script( 'ebioro-payment' );
+}
 
 /**
  * We need to check how the block integration works. Below some links.
