@@ -24,6 +24,13 @@ class Ebioro_API_Handler {
     public static $api_url = 'https://test-merchant.ebioro.com';
 
     /**
+     * Ebioro Test API url
+     *
+     * @var string Ebioro Test API url
+     */
+    public static $test_api_url = 'https://test-merchant.ebioro.com';
+
+    /**
      * Ebioro API version
      *
      * @var string Ebioro API version.
@@ -75,7 +82,7 @@ class Ebioro_API_Handler {
             'headers' => $authHeaders,
         );
 
-        $url = self::$api_url . $endpoint;
+        $url = self::api_url() . $endpoint;
 
         if (in_array($method, array('POST', 'PUT'))) {
             $args['body'] = json_encode($params);
@@ -230,5 +237,15 @@ class Ebioro_API_Handler {
         );
 
         return $headers;
+    }
+
+    /**
+     * Get the API URL
+     */
+    private static function api_url()
+    {
+        $data = get_option( 'woocommerce_ebioro_settings' );
+        $url = ( 'yes' == $data['test_mode'] ) ? self::$test_api_url : self::$api_url;
+        return $url;
     }
 }
