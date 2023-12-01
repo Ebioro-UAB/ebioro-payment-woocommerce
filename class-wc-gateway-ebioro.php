@@ -49,8 +49,8 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 
 		$this->title = $this->get_option('title');
 		$this->description = $this->get_option('description');
-		$this->api_key = $this->get_option('api_key');
-		$this->api_secret = $this->get_option('api_secret');
+		$this->api_key = ( self::is_test_mode() ) ? $this->get_option( 'test_api_key' ) : $this->get_option('api_key');
+		$this->api_secret = ( self::is_test_mode() ) ? $this->get_option( 'test_api_secret' ) : $this->get_option('api_secret');
 		$this->debug = 'yes' === $this->get_option('debug', 'no');
 
 		self::$log_enabled = $this->debug;
@@ -428,8 +428,8 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 		include_once dirname(__FILE__) . '/includes/class-ebioro-api-handler.php';
 
 		Ebioro_API_Handler::$log = get_class($this) . '::log';
-		Ebioro_API_Handler::$api_key = $this->get_option('api_key');
-		Ebioro_API_Handler::$api_secret = $this->get_option('api_secret');
+		Ebioro_API_Handler::$api_key = ( self::is_test_mode() ) ? $this->get_option( 'test_api_key' ) : $this->get_option('api_key');
+		Ebioro_API_Handler::$api_secret = ( self::is_test_mode() ) ? $this->get_option( 'test_api_secret' ) : $this->get_option('api_secret');
 	}
 
 	/**
@@ -525,5 +525,18 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 		// }
 
 		// return $query;
+	}
+
+	/**
+	 * Check for Test Mode
+	 *
+	 * @return bool
+	 */
+	private static function is_test_mode()
+	{
+		$data = get_option( 'woocommerce_ebioro_settings' );
+		if ( 'yes' == $data['test_mode'] )
+			return true;
+		return false;
 	}
 }
