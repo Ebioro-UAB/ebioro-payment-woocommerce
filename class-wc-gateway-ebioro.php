@@ -539,4 +539,22 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			return true;
 		return false;
 	}
+
+	/**
+	 * Plugin url.
+	 *
+	 * @return string
+	 */
+	public static function plugin_url() {
+		return untrailingslashit( plugins_url( '/', __FILE__ ) );
+	}
+
+	/**
+	 * Plugin path.
+	 *
+	 * @return string
+	 */
+	public static function plugin_abspath() {
+		return trailingslashit( plugin_dir_path( __FILE__ ) );
+	}
 }

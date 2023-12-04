@@ -1,7 +1,7 @@
 <?php
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
-use Automattic\WooCommerce\Blocks\Payments\PaymentResult;
-use Automattic\WooCommerce\Blocks\Payments\PaymentContext;
+// use Automattic\WooCommerce\Blocks\Payments\PaymentResult;
+// use Automattic\WooCommerce\Blocks\Payments\PaymentContext;
 
 
 /**
@@ -25,11 +25,6 @@ final class WC_Gateway_Ebioro_Blocks_Support extends AbstractPaymentMethodType {
      */
     protected $name = 'ebioro';
 
-
-    public function __construct() {
-        add_action( 'woocommerce_rest_checkout_process_payment_with_context', [ $this, 'add_payment_request_order_meta' ], 8, 2 );
-        //add_action( 'woocommerce_rest_checkout_process_payment_with_context', [ $this, 'add_stripe_intents' ], 9999, 2 );
-    }
 
     /**
      * Initializes the payment method type.
