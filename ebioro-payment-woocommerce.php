@@ -28,8 +28,8 @@ function eb_init_gateway() {
         add_filter('wc_order_statuses', 'eb_wc_add_status');
         add_action('woocommerce_admin_order_data_after_order_details', 'eb_order_meta_general');
         add_action('woocommerce_order_details_after_order_table', 'eb_order_meta_general');
-        add_filter( 'plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-commerce.php', 'eb_add_setting_link' );
-        add_filter( 'network_admin_plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-commerce.php', 'eb_add_setting_link' );
+        add_filter( 'plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-woocommerce.php', 'eb_add_setting_link' );
+        add_filter( 'network_admin_plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-woocommerce.php', 'eb_add_setting_link' );
         add_action( 'admin_enqueue_scripts', 'eb_enqueue' );
         //add_filter('woocommerce_email_order_meta_fields', 'eb_custom_woocommerce_email_order_meta_fields', 10, 3);
         // add_filter('woocommerce_email_actions', 'eb_register_email_action');
