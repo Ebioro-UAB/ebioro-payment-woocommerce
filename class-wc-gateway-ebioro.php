@@ -36,10 +36,10 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 	{
 		$this->id = 'ebioro';
 		$this->has_fields = false;
-		$this->order_button_text = __('Proceed to Ebioro', 'ebioro');
-		$this->method_title = __('Ebioro', 'ebioro');
+		$this->order_button_text = __('Proceed to Ebioro', 'ebioro-payment-woocommerce');
+		$this->method_title = __('Ebioro', 'ebioro-payment-woocommerce');
 		$this->method_description = '<p>' .
-			__('A payment gateway allows your customers to pay with the ebioro wallet', 'ebioro');
+			__('A payment gateway allows your customers to pay with the ebioro wallet', 'ebioro-payment-woocommerce');
 
 
 		$this->init_form_fields();
@@ -73,7 +73,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			if (empty(self::$log)) {
 				self::$log = wc_get_logger();
 			}
-			self::$log->log($level, $message, array('source' => 'ebioro'));
+			self::$log->log($level, $message, array('source' => $this->id));
 		}
 	}
 
@@ -90,14 +90,14 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 
 		$image_path = plugin_dir_path(__FILE__) . 'assets/images';
 		$icon_html = '';
-		$methods = get_option('ebioro_payment_methods', array('ebioro'));
+		$methods = get_option('ebioro_payment_methods', array($this->id));
 
 		// Load icon for each available payment method.
 		foreach ($methods as $m) {
 			$path = realpath($image_path . '/' . $m . '.png');
 			if ($path && dirname($path) === $image_path && is_file($path)) {
 				$url = WC_HTTPS::force_https_url(plugins_url('/assets/images/' . $m . '.png', __FILE__));
-				$icon_html .= '<img width="40" src="' . esc_attr($url) . '" alt="' . esc_attr__($m, 'ebioro') . '" />';
+				$icon_html .= '<img width="40" src="' . esc_attr($url) . '" alt="' . esc_attr__($m, 'ebioro-payment-woocommerce') . '" />';
 			}
 		}
 
@@ -115,57 +115,57 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 	{
 		$this->form_fields = array(
 			'enabled' => array(
-				'title' => __('Enable/Disable', 'woocommerce'),
+				'title' => __('Enable/Disable', 'ebioro-payment-woocommerce'),
 				'type' => 'checkbox',
-				'label' => __('Enable Ebioro Payments', 'ebioro'),
+				'label' => __('Enable Ebioro Payments', 'ebioro-payment-woocommerce'),
 				'default' => 'no',
 			),
 			'title' => array(
-				'title' => __('Title', 'woocommerce'),
+				'title' => __('Title', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
-				'description' => __('This controls the title which the user sees during checkout.', 'woocommerce'),
-				'default' => __('Ebioro wallet', 'ebioro'),
+				'description' => __('This controls the title which the user sees during checkout.', 'ebioro-payment-woocommerce'),
+				'default' => __('Ebioro wallet', 'ebioro-payment-woocommerce'),
 				'desc_tip' => true,
 			),
 			'description' => array(
-				'title' => __('Description', 'woocommerce'),
+				'title' => __('Description', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
 				'desc_tip' => true,
-				'description' => __('This controls the description which the user sees during checkout.', 'woocommerce'),
-				'default' => __('Pay with ease using the ebioro wallet.', 'ebioro'),
+				'description' => __('This controls the description which the user sees during checkout.', 'ebioro-payment-woocommerce'),
+				'default' => __('Pay with ease using the ebioro wallet.', 'ebioro-payment-woocommerce'),
 			),
 			'api_key' => array(
-				'title' => __('API Key', 'ebioro'),
+				'title' => __('API Key', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
-				'description' => sprintf(__('Get your API Key from the Ebioro Settings page.', 'ebioro')),
+				'description' => sprintf(__('Get your API Key from the Ebioro Settings page.', 'ebioro-payment-woocommerce')),
 			),
 			'api_secret' => array(
-				'title' => __('API Secret', 'ebioro'),
+				'title' => __('API Secret', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
-				'description' => sprintf(__('Get your API Secret from the Ebioro Settings page.', 'ebioro'))
+				'description' => sprintf(__('Get your API Secret from the Ebioro Settings page.', 'ebioro-payment-woocommerce'))
 			),
 			'test_mode' => array(
-				'title' => __('Enable test mode', 'ebioro'),
+				'title' => __('Enable test mode', 'ebioro-payment-woocommerce'),
 				'type' => 'checkbox',
-				'label' => __('Enable test mode to work in development environment.', 'ebioro'),
+				'label' => __('Enable test mode to work in development environment.', 'ebioro-payment-woocommerce'),
 				'default' => 'no',
 			),
 			'test_api_key' => array(
-				'title' => __('Test API Key', 'ebioro'),
+				'title' => __('Test API Key', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
-				'description' => __('Get your Test API Key from the Ebioro Settings page.', 'ebioro')
+				'description' => __('Get your Test API Key from the Ebioro Settings page.', 'ebioro-payment-woocommerce')
 			),
 			'test_api_secret' => array(
-				'title' => __('Test API Secret', 'ebioro'),
+				'title' => __('Test API Secret', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
-				'description' => __('Get your Test API Secret from the Ebioro Settings page.', 'ebioro')
+				'description' => __('Get your Test API Secret from the Ebioro Settings page.', 'ebioro-payment-woocommerce')
 			),
 			'debug' => array(
-				'title' => __('Debug log', 'woocommerce'),
+				'title' => __('Debug log', 'ebioro-payment-woocommerce'),
 				'type' => 'checkbox',
-				'label' => __('Enable logging', 'woocommerce'),
+				'label' => __('Enable logging', 'ebioro-payment-woocommerce'),
 				'default' => 'no',
-				'description' => sprintf(__('Log Ebioro API events inside %s', 'ebioro'), '<code>' . \WC_Log_Handler_File::get_log_file_path('ebioro') . '</code>'),
+				'description' => sprintf(__('Log Ebioro API events inside %s', 'ebioro-payment-woocommerce'), '<code>' . \WC_Log_Handler_File::get_log_file_path($this->id) . '</code>'),
 			),
 		);
 	}
@@ -451,29 +451,29 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 
 			if ('paid'===$ebioro_order_status && 'processing'===$ebioro_order_settlement_status && 'pending' == $order->get_status()){
 
-				$order->update_status( 'processing', __( 'Ebioro payment was successfully processed.', 'ebioro' ) );
+				$order->update_status( 'processing', __( 'Ebioro payment was successfully processed.', 'ebioro-payment-woocommerce' ) );
 				$order->payment_complete();
 
 			}
 
 			if ('paid' === $ebioro_order_settlement_status && 'paid' === $ebioro_order_status ){
 
-				$order->add_order_note( __( 'Ebioro payment has been delivered to your merchant account.', 'ebioro' ) );
+				$order->add_order_note( __( 'Ebioro payment has been delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
 
 			}
 
 			if ('underpaid' ===$ebioro_order_status){
 				$order->update_status('on-hold');
-				$order->update_status( 'on-hold', __( 'Ebioro payment has been underpaid by customer.', 'ebioro' ) );
+				$order->update_status( 'on-hold', __( 'Ebioro payment has been underpaid by customer.', 'ebioro-payment-woocommerce' ) );
 
 			}
 
 			if ('expired' ===$ebioro_order_status){
-				$order->update_status( 'cancelled', __( 'Ebioro payment expired.', 'ebioro' ) );
+				$order->update_status( 'cancelled', __( 'Ebioro payment expired.', 'ebioro-payment-woocommerce' ) );
 			}
 
 			if ('canceled' ===$ebioro_order_status){
-				$order->update_status( 'cancelled', __( 'Ebioro payment canceled.', 'ebioro' ) );
+				$order->update_status( 'cancelled', __( 'Ebioro payment canceled.', 'ebioro-payment-woocommerce' ) );
 			}
 
 
@@ -481,7 +481,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 
 		if ($ebioro_payload_state ==='transaction_failed'){
 
-			$order->add_order_note( __( 'Ebioro payment failed to be delivered to your merchant account.', 'ebioro' ) );
+			$order->add_order_note( __( 'Ebioro payment failed to be delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
 
 		}
 

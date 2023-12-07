@@ -1,0 +1,160 @@
+# Copyright (C) 2023 Ebioro UAB
+# This file is distributed under the same license as the Ebioro for WooCommerce plugin.
+msgid ""
+msgstr ""
+"Project-Id-Version: Ebioro for WooCommerce 1.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/ebioro-payment-woocommerce\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2023-12-07T10:15:01-05:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.8.1\n"
+"X-Domain: ebioro-payment-woocommerce\n"
+
+#. Plugin Name of the plugin
+msgid "Ebioro for WooCommerce"
+msgstr ""
+
+#. Description of the plugin
+msgid "A payment gateway that allows your customers to pay with cryptocurrency via Ebioro."
+msgstr ""
+
+#. Author of the plugin
+msgid "Ebioro UAB"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://www.ebioro.com/"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:39
+msgid "Proceed to Ebioro"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:40
+msgid "Ebioro"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:42
+msgid "A payment gateway allows your customers to pay with the ebioro wallet"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:118
+msgid "Enable/Disable"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:120
+msgid "Enable Ebioro Payments"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:124
+msgid "Title"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:126
+msgid "This controls the title which the user sees during checkout."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:127
+msgid "Ebioro wallet"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:131
+msgid "Description"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:134
+msgid "This controls the description which the user sees during checkout."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:135
+msgid "Pay with ease using the ebioro wallet."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:138
+msgid "API Key"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:140
+msgid "Get your API Key from the Ebioro Settings page."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:143
+msgid "API Secret"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:145
+msgid "Get your API Secret from the Ebioro Settings page."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:148
+msgid "Enable test mode"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:150
+msgid "Enable test mode to work in development environment."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:154
+msgid "Test API Key"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:156
+msgid "Get your Test API Key from the Ebioro Settings page."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:159
+msgid "Test API Secret"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:161
+msgid "Get your Test API Secret from the Ebioro Settings page."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:164
+msgid "Debug log"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:166
+msgid "Enable logging"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:168
+msgid "Log Ebioro API events inside %s"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:454
+msgid "Ebioro payment was successfully processed."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:461
+msgid "Ebioro payment has been delivered to your merchant account."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:467
+msgid "Ebioro payment has been underpaid by customer."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:472
+msgid "Ebioro payment expired."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:476
+msgid "Ebioro payment canceled."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:484
+msgid "Ebioro payment failed to be delivered to your merchant account."
+msgstr ""
+
+#: ebioro-payment-woocommerce.php:61
+msgid "Settings"
+msgstr ""
+
+#: ebioro-payment-woocommerce.php:116
+#: ebioro-payment-woocommerce.php:145
+msgid "Ebioro Settlement Pending"
+msgstr ""

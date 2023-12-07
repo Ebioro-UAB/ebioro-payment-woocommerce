@@ -5,7 +5,7 @@
  * Author: Ebioro UAB
  * Author URI: https://www.ebioro.com/
  * Version: 1.1.0
- * Text domain: ebioro-for-woocommerce
+ * Text domain: ebioro-payment-woocommerce
  * Domain Path: /languages
  * WC tested up to: 8.2.1
  */
@@ -58,7 +58,7 @@ function eb_add_setting_link( $actions ){
         'section'   => 'ebioro'
     );
     return array_merge( array(
-        'settings' => '<a href="'. add_query_arg( $args, admin_url( 'admin.php' ) ) .'">'. __( 'Settings', 'ebioro' ) .'</a>'
+        'settings' => '<a href="'. add_query_arg( $args, admin_url( 'admin.php' ) ) .'">'. __( 'Settings', 'ebioro-payment-woocommerce' ) .'</a>'
     ), $actions );
 }
 
@@ -113,7 +113,7 @@ function eb_wc_check_orders() {
  */
 function eb_wc_register_settlement_status() {
     register_post_status('wc-ebiorosettlementpending', array(
-        'label'                     => __('Ebioro Settlement Pending', 'ebioro'),
+        'label'                     => __('Ebioro Settlement Pending', 'ebioro-payment-woocommerce'),
         'public'                    => true,
         'show_in_admin_status_list' => true,
         /* translators: WooCommerce order count in blockchain pending. */
@@ -142,7 +142,7 @@ function eb_wc_add_status($wc_statuses_arr) {
         $new_statuses_arr[$id] = $label;
 
         if ('wc-pending' === $id) {  // after "Payment Pending" status.
-            $new_statuses_arr['wc-ebiorosettlementpending'] = __('Ebioro Settlement Pending', 'ebioro');
+            $new_statuses_arr['wc-ebiorosettlementpending'] = __('Ebioro Settlement Pending', 'ebioro-payment-woocommerce');
         }
     }
 
