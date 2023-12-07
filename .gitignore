@@ -39,3 +39,9 @@ GitHub.sublime-settings
 # ignore node dependency directories
 node_modules/
 package-lock.json
+
+### macOS ###
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
