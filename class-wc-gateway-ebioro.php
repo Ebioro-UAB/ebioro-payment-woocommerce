@@ -511,20 +511,6 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 		}
 
 		return $query;
-
-		// if ( array_key_exists( 'ebioro_archived', $query_vars ) ) {
-		// 	$query['meta_query'][] = array(
-		// 		'key'     => '_ebioro_archived',
-		// 		'compare' => $query_vars['ebioro_archived'] ? 'EXISTS' : 'NOT EXISTS',
-		// 	);
-		// 	// Limit only to orders payed through Ebioro.
-		// 	$query['meta_query'][] = array(
-		// 		'key'     => '_ebioro_payment_id',
-		// 		'compare' => 'EXISTS',
-		// 	);
-		// }
-
-		// return $query;
 	}
 
 	/**

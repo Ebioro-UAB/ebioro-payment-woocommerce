@@ -1,8 +1,5 @@
 <?php
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
-// use Automattic\WooCommerce\Blocks\Payments\PaymentResult;
-// use Automattic\WooCommerce\Blocks\Payments\PaymentContext;
-
 
 /**
  * Ebioro Payments Blocks integration

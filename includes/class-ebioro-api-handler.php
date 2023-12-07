@@ -106,12 +106,6 @@ class Ebioro_API_Handler {
                 return array(false, 'Error decoding JSON response.');
             }
 
-            // if (!empty($result['warnings'])) {
-            //     foreach ($result['warnings'] as $warning) {
-            //         self::log('API Warning: ' . $warning);
-            //     }
-            // }
-
             $status_code = $response['response']['code'];
 
             if (in_array($status_code, array(200, 201), true)) {
@@ -216,18 +210,6 @@ class Ebioro_API_Handler {
         
       
         $signature = hash_hmac('sha256', $tosign, self::$api_secret);
-
-        // Debug statement
-        // self::log( "Normalized Body in PHP: $body\n");
-
-        // Debug statements
-        // self::log( "Generated Signature in PHP: $signature\n");
-        // self::log( "Generated Timestamp in PHP: $timestamp\n");
-        // self::log( "Generated Body in PHP: $body\n");
-        // self::log( "Generated method in PHP: $method\n");
-        // self::log( "Generated path in PHP: $path\n");
-        // self::log( "To sign info  Body in PHP: $tosign\n");
-      
 
         $headers = array(
             'Content-Type'          => 'application/json',
