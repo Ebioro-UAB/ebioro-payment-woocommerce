@@ -175,6 +175,9 @@ class Ebioro_API_Handler {
         }
 
         $args['redirectUrl'] = $redirect;
+
+        $data = get_option( 'woocommerce_ebioro_settings' );
+        $args['locale'] = $data['api_locale'];
     
         // Set optional parameters in $args.
         $optionalParams = ['metadata', 'cancelUrl', 'webhookUrl'];

@@ -147,6 +147,17 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 				'type' => 'text',
 				'description' => sprintf(__('Get your API Secret from the Ebioro Settings page.', 'ebioro-payment-woocommerce'))
 			),
+			'api_locale'	=> array(
+				'title'		=> __( 'API language', 'ebioro-payment-woocommerce' ),
+				'description'	=> __( 'Select the language to interact with the Ebioro API', 'ebioro-payment-woocommerce' ),
+				'id'		=> 'woo_ebioro_api_locale',
+				'type'		=> 'select',
+				'options'	=> array(
+					'en'	=> __( 'English', 'ebioro-payment-woocommerce' ),
+					'es'	=> __( 'Spanish', 'ebioro-payment-woocommerce' )
+				),
+				'default'	=> 'en'
+			),
 			'test_mode' => array(
 				'title' => __('Enable test mode', 'ebioro-payment-woocommerce'),
 				'type' => 'checkbox',
