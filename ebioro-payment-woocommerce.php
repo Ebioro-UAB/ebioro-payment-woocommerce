@@ -199,3 +199,34 @@ function eb_admin_notice_api_keys(){
 <?php
 }
 add_action( 'admin_notices', 'eb_admin_notice_api_keys' );
+
+/**
+ * Add admin screen notice if Test Mode is active
+ */
+function eb_admin_notice_test_mode(){
+	$data = get_option( 'woocommerce_ebioro_settings' );
+	$test_mode 	= $data['test_mode'];
+
+	if ( 'no' == $test_mode )
+		return;
+
+	$plugin = get_plugin_data( __FILE__ );
+	$args = array(
+		'page'      => 'wc-settings',
+		'tab'       => 'checkout',
+		'section'   => 'ebioro'
+	);
+?>
+	<div class="notice notice-error">
+		<p>
+			<?php
+			printf(
+				__( '%s. The test mode is active, <a href="%s">disable it</a> before deploying into production.', 'ebioro-payment-woocommerce' ),
+				$plugin['Name'],
+				add_query_arg( $args, admin_url( 'admin.php' ) )
+			) ?>
+		</p>
+	</div>
+<?php
+}
+add_action( 'admin_notices', 'eb_admin_notice_test_mode' );
