@@ -230,3 +230,32 @@ function eb_admin_notice_test_mode(){
 <?php
 }
 add_action( 'admin_notices', 'eb_admin_notice_test_mode' );
+
+/**
+ * Admin screen notices if currency is not USD
+ */
+function eb_admin_notice_currency(){
+	if ( 'USD' == get_woocommerce_currency() )
+		return;
+
+	$args = array(
+		'page'      => 'wc-settings',
+		'tab'       => 'general#woocommerce_currency'
+	);
+
+	$plugin = get_plugin_data( __FILE__ );
+?>
+	<div class="notice notice-error">
+		<p>
+			<?php
+			printf(
+				__( '%s. Your currency is <strong>%s</strong>, Ebioro wallet uses <strong>USD</strong>. <a href="%s">Change it to USD</a> to connect properly with our wallet.', 'ebioro-payment-woocommerce' ),
+				$plugin['Name'],
+				get_woocommerce_currency(),
+				add_query_arg( $args, admin_url( 'admin.php' ) )
+			) ?>
+		</p>
+	</div>
+<?php
+}
+add_action( 'admin_notices', 'eb_admin_notice_currency' );

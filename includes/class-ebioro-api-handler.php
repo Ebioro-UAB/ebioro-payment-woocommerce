@@ -170,7 +170,7 @@ class Ebioro_API_Handler {
         } else {
             $args['amount'] = [
                 'value' => is_numeric($amount) ? (float)$amount : 0.0,
-                'currency' => $currency,
+                'currency' => 'USD' // Currency Hardcoded
             ];
         }
 
@@ -186,6 +186,8 @@ class Ebioro_API_Handler {
                 $args[$param] = $$param;
             }
         }
+
+        wp_die( '<pre>'. print_r( $args, true ) .'</pre>' );
     
         // Make the API request.
         $result = self::send_request('/payments', $args, 'POST');
