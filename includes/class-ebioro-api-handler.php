@@ -186,8 +186,6 @@ class Ebioro_API_Handler {
                 $args[$param] = $$param;
             }
         }
-
-        wp_die( '<pre>'. print_r( $args, true ) .'</pre>' );
     
         // Make the API request.
         $result = self::send_request('/payments', $args, 'POST');
