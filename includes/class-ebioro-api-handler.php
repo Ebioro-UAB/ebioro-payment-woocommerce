@@ -21,7 +21,7 @@ class Ebioro_API_Handler {
      *
      * @var string Ebioro API url.
      */
-    public static $api_url = 'https://test-merchant.ebioro.com';
+    public static $api_url = 'https://merchant-api.ebioro.com/';
 
     /**
      * Ebioro Test API url
