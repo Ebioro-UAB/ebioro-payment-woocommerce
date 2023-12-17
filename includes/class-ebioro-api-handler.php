@@ -21,7 +21,7 @@ class Ebioro_API_Handler {
      *
      * @var string Ebioro API url.
      */
-    public static $api_url = 'https://merchant-api.ebioro.com/';
+    public static $api_url = 'https://merchant-api.ebioro.com';
 
     /**
      * Ebioro Test API url
@@ -169,7 +169,7 @@ class Ebioro_API_Handler {
             return [false, 'Missing currency.'];
         } else {
             $args['amount'] = [
-                'value' => is_numeric($amount) ? (float)$amount : 0.0,
+                'value' => is_numeric($amount) ? number_format((float)$amount, 2, '.', '') : 0.0,
                 'currency' => 'USD' // Currency Hardcoded
             ];
         }
