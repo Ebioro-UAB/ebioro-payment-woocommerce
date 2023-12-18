@@ -4,7 +4,7 @@
  * Description: A payment gateway that allows your customers to pay with cryptocurrency via Ebioro.
  * Author: Ebioro UAB
  * Author URI: https://www.ebioro.com/
- * Version: 1.0.6
+ * Version: 1.0.7
  * Text domain: ebioro-payment-woocommerce
  * Domain Path: /languages
  * WC tested up to: 8.2.1
