@@ -169,7 +169,7 @@ class Ebioro_API_Handler {
             return [false, 'Missing currency.'];
         } else {
             $args['amount'] = [
-                'value' => is_numeric($amount) ? number_format((float)$amount, 2, '.', '') : 0.0,
+                'value' => number_format((float)$amount, 2, '.', ''),
                 'currency' => $currency
             ];
         }
