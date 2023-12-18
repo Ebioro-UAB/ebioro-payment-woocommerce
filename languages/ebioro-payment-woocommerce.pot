@@ -2,14 +2,14 @@
 # This file is distributed under the same license as the Ebioro for WooCommerce plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: Ebioro for WooCommerce 1.1.0\n"
+"Project-Id-Version: Ebioro for WooCommerce 1.0.6\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/ebioro-payment-woocommerce\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2023-12-07T10:15:01-05:00\n"
+"POT-Creation-Date: 2023-12-18T10:40:17-05:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.8.1\n"
 "X-Domain: ebioro-payment-woocommerce\n"
@@ -42,111 +42,127 @@ msgstr ""
 msgid "A payment gateway allows your customers to pay with the ebioro wallet"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:118
+#: class-wc-gateway-ebioro.php:121
 msgid "Enable/Disable"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:120
+#: class-wc-gateway-ebioro.php:123
 msgid "Enable Ebioro Payments"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:124
+#: class-wc-gateway-ebioro.php:127
 msgid "Title"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:126
+#: class-wc-gateway-ebioro.php:129
 msgid "This controls the title which the user sees during checkout."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:127
+#: class-wc-gateway-ebioro.php:130
 msgid "Ebioro wallet"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:131
+#: class-wc-gateway-ebioro.php:134
 msgid "Description"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:134
+#: class-wc-gateway-ebioro.php:137
 msgid "This controls the description which the user sees during checkout."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:135
+#: class-wc-gateway-ebioro.php:138
 msgid "Pay with ease using the ebioro wallet."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:138
+#: class-wc-gateway-ebioro.php:141
 msgid "API Key"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:140
+#: class-wc-gateway-ebioro.php:143
 msgid "Get your API Key from the Ebioro Settings page."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:143
+#: class-wc-gateway-ebioro.php:146
 msgid "API Secret"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:145
+#: class-wc-gateway-ebioro.php:148
 msgid "Get your API Secret from the Ebioro Settings page."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:148
-msgid "Enable test mode"
+#: class-wc-gateway-ebioro.php:151
+msgid "Language of Payment Page"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:150
-msgid "Enable test mode to work in development environment."
-msgstr ""
-
-#: class-wc-gateway-ebioro.php:154
-msgid "Test API Key"
+#: class-wc-gateway-ebioro.php:152
+msgid "Select the language in which your customers see the payment page"
 msgstr ""
 
 #: class-wc-gateway-ebioro.php:156
-msgid "Get your Test API Key from the Ebioro Settings page."
+msgid "English"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:159
-msgid "Test API Secret"
+#: class-wc-gateway-ebioro.php:157
+msgid "Spanish"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:161
-msgid "Get your Test API Secret from the Ebioro Settings page."
+#: class-wc-gateway-ebioro.php:162
+msgid "Enable test mode"
 msgstr ""
 
 #: class-wc-gateway-ebioro.php:164
-msgid "Debug log"
-msgstr ""
-
-#: class-wc-gateway-ebioro.php:166
-msgid "Enable logging"
+msgid "Enable test mode to work in development environment."
 msgstr ""
 
 #: class-wc-gateway-ebioro.php:168
+msgid "Test API Key"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:170
+msgid "Get your Test API Key from the Ebioro Settings page."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:173
+msgid "Test API Secret"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:175
+msgid "Get your Test API Secret from the Ebioro Settings page."
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:178
+msgid "Debug log"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:180
+msgid "Enable logging"
+msgstr ""
+
+#: class-wc-gateway-ebioro.php:182
 msgid "Log Ebioro API events inside %s"
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:454
+#: class-wc-gateway-ebioro.php:467
 msgid "Ebioro payment was successfully processed."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:461
+#: class-wc-gateway-ebioro.php:474
 msgid "Ebioro payment has been delivered to your merchant account."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:467
+#: class-wc-gateway-ebioro.php:480
 msgid "Ebioro payment has been underpaid by customer."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:472
+#: class-wc-gateway-ebioro.php:485
 msgid "Ebioro payment expired."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:476
+#: class-wc-gateway-ebioro.php:489
 msgid "Ebioro payment canceled."
 msgstr ""
 
-#: class-wc-gateway-ebioro.php:484
+#: class-wc-gateway-ebioro.php:497
 msgid "Ebioro payment failed to be delivered to your merchant account."
 msgstr ""
 
@@ -157,4 +173,16 @@ msgstr ""
 #: ebioro-payment-woocommerce.php:116
 #: ebioro-payment-woocommerce.php:145
 msgid "Ebioro Settlement Pending"
+msgstr ""
+
+#: ebioro-payment-woocommerce.php:193
+msgid "%s. API keys missing. <a href=\"%s\">Please, set your API keys here</a>."
+msgstr ""
+
+#: ebioro-payment-woocommerce.php:224
+msgid "%s. The test mode is active, <a href=\"%s\">disable it</a> before deploying into production."
+msgstr ""
+
+#: ebioro-payment-woocommerce.php:258
+msgid "%s. Your currency is <strong>%s</strong>, Ebioro wallet uses <strong>%s</strong>. <a href=\"%s\">Change it to USD</a> to connect properly with our wallet."
 msgstr ""

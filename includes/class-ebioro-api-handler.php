@@ -170,7 +170,7 @@ class Ebioro_API_Handler {
         } else {
             $args['amount'] = [
                 'value' => is_numeric($amount) ? number_format((float)$amount, 2, '.', '') : 0.0,
-                'currency' => 'USD' // Currency Hardcoded
+                'currency' => $currency
             ];
         }
 
