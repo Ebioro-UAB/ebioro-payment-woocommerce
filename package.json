@@ -1,7 +1,7 @@
 {
 	"name": "woocommerce-gateway-ebioro",
 	"title": "WooCommerce Ebioro Payments",
-	"version": "1.0.9-beta",
+	"version": "1.0.9",
 	"author": "WooCommerce",
 	"license": "GPL-3.0+",
 	"keywords": [],
