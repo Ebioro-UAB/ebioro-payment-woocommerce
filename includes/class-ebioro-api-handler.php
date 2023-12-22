@@ -28,7 +28,7 @@ class Ebioro_API_Handler {
      *
      * @var string Ebioro Test API url
      */
-    public static $test_api_url = 'https://test-merchant.ebioro.com';
+    public static $test_api_url = 'https://test-merchant.ebioro.com'; #'http://localhost:3001';
 
     /**
      * Ebioro API version
@@ -85,23 +85,29 @@ class Ebioro_API_Handler {
         $url = self::api_url() . $endpoint;
 
         if (in_array($method, array('POST', 'PUT'))) {
-            $args['body'] = json_encode($params);
+            
+            $args['body'] = json_encode($params,JSON_UNESCAPED_SLASHES);
+        
         } else {
+
             $url = add_query_arg($params, $url);
         }
 
-        // self::log('Ebioro Request arguments for ' . $endpoint . ': ' . print_r($args, true));
-
         $response = wp_remote_request(esc_url_raw($url), $args);
 
+        self::log('the body to send ' . ': ' . print_r($args, true));
+
         if (is_wp_error($response)) {
+            
             self::log('WP response error: ' . $response->get_error_message());
             return array(false, $response->get_error_message());
+        
         } else {
             
             $result = json_decode($response['body'], true);
 
             if ($result === null && json_last_error() !== JSON_ERROR_NONE) {
+                
                 self::log('Error decoding JSON response: ' . json_last_error_msg());
                 return array(false, 'Error decoding JSON response.');
             }
@@ -109,9 +115,13 @@ class Ebioro_API_Handler {
             $status_code = $response['response']['code'];
 
             if (in_array($status_code, array(200, 201), true)) {
+                
                 return array(true, $result);
-            } else {
-                $e = empty($result['error']['message']) ? '' : $result['error']['message'];
+            }
+             else {
+                
+                $e = empty($result[1]['message']) ? '' : $result[1]['message'];
+               
                 $errors = array(
                     400 => 'Error response from API: ' . $e,
                     401 => 'Authentication error, please check your API signature.',
@@ -119,8 +129,11 @@ class Ebioro_API_Handler {
                 );
 
                 if (array_key_exists($status_code, $errors)) {
+                    
                     $msg = $errors[$status_code];
+                
                 } else {
+
                     $msg = 'Unknown response from API: ' . $status_code;
                 }
                 self::log($msg);
@@ -162,14 +175,20 @@ class Ebioro_API_Handler {
     
         // Validate and set 'amount' and 'currency' in $args.
         if (is_null($amount)) {
+            
             self::log('Error: amount cannot be missing (in create_payment()).', 'error');
             return [false, 'Missing amount.'];
+        
         } elseif (is_null($currency)) {
+            
             self::log('Error: if amount is given, currency must be given (in create_payment()).', 'error');
             return [false, 'Missing currency.'];
+
         } else {
+            // Convert amount to smallest unit before creating the request
+            $amount = self::convert_to_smallest_unit($amount, $currency);
             $args['amount'] = [
-                'value' => number_format((float)$amount, 2, '.', ''),
+                'value' => $amount,
                 'currency' => $currency
             ];
         }
@@ -181,6 +200,7 @@ class Ebioro_API_Handler {
     
         // Set optional parameters in $args.
         $optionalParams = ['metadata', 'cancelUrl', 'webhookUrl'];
+        
         foreach ($optionalParams as $param) {
             if (!is_null($$param)) {
                 $args[$param] = $$param;
@@ -203,17 +223,24 @@ class Ebioro_API_Handler {
      * @return array
      */
     private static function buildAuthHeaders($path, $method, $params = array()) {
-       
-        $timestamp = time();
-        $body = $method != 'GET' ? (count($params) ? is_string($params) ? $params : json_encode($params) : null) : null;
 
-        // this is because json_encode in php escapes forward slashes but JSON.stringify on the server does not.
-        // we therefore need to be consistent to be able to form the signature.
-        $tosign = $path . $timestamp . $method .str_replace('\/', '/', $body);
+
+        date_default_timezone_set('UTC');
+        $timestamp = time();
+
+        // Ensuring consistent JSON serialization
+        $body = $method != 'GET' ? json_encode($params, JSON_UNESCAPED_SLASHES) : null;
         
-      
+        // Logging the string to be signed
+        
+        $tosign = $path . $timestamp . $method . $body;
+        
+        self::log('String to be signed: ' . print_r($tosign, true));
+
+        // Generate signature
         $signature = hash_hmac('sha256', $tosign, self::$api_secret);
 
+        // Prepare headers
         $headers = array(
             'Content-Type'          => 'application/json',
             'X-Digest-Key'          => self::$api_key,
@@ -232,5 +259,16 @@ class Ebioro_API_Handler {
         $data = get_option( 'woocommerce_ebioro_settings' );
         $url = ( 'yes' == $data['test_mode'] ) ? self::$test_api_url : self::$api_url;
         return $url;
+    }
+
+    /**
+     * Converting to integers to deal with decimal precision issues.
+     */
+
+    private static function convert_to_smallest_unit($amount, $currency) {
+        // Assuming a simple conversion rate of 100 for most currencies.
+        // This will need to be modified in case of special currencies that
+        // does not comply with this.
+        return (int) round($amount * 100);
     }
 }

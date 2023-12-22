@@ -227,7 +227,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 
 		self::log("API Result: " . print_r($result, true));
 
-		if (!$result[1]['resource']) {
+		if (!$result[1]['id']) {
 			return array('result' => 'fail');
 		}
 
@@ -462,10 +462,16 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 		// sets the order status to Pending when created..
 		if ($ebioro_payload_state==='transaction_updated'){
 
-			if ('paid'===$ebioro_order_status && 'processing'===$ebioro_order_settlement_status && 'pending' == $order->get_status()){
+			if ('paid'===$ebioro_order_status && 'open'===$ebioro_order_settlement_status && 'pending' == $order->get_status()){
 
-				$order->update_status( 'processing', __( 'Ebioro payment was successfully processed.', 'ebioro-payment-woocommerce' ) );
+				$order->update_status( 'processing', __( 'Customer payment was successfully processed. Pending Ebioro payment', 'ebioro-payment-woocommerce' ) );
 				$order->payment_complete();
+
+			}
+
+			if ('processing' === $ebioro_order_settlement_status && 'paid' === $ebioro_order_status ){
+
+				$order->add_order_note( __( 'Ebioro payment has been initiated to your merchant account.', 'ebioro-payment-woocommerce' ) );
 
 			}
 
@@ -475,13 +481,13 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 
 			}
 
-			if ('underpaid' ===$ebioro_order_status){
+			if ('underpaid' === $ebioro_order_status){
 				$order->update_status('on-hold');
 				$order->update_status( 'on-hold', __( 'Ebioro payment has been underpaid by customer.', 'ebioro-payment-woocommerce' ) );
 
 			}
 
-			if ('expired' ===$ebioro_order_status){
+			if ('expired' === $ebioro_order_status){
 				$order->update_status( 'cancelled', __( 'Ebioro payment expired.', 'ebioro-payment-woocommerce' ) );
 			}
 

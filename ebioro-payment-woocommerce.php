@@ -4,7 +4,7 @@
  * Description: A payment gateway that allows your customers to pay with cryptocurrency via Ebioro.
  * Author: Ebioro UAB
  * Author URI: https://www.ebioro.com/
- * Version: 1.0.8
+ * Version: 1.0.9-beta
  * Text domain: ebioro-payment-woocommerce
  * Domain Path: /languages
  * WC tested up to: 8.2.1
@@ -21,11 +21,11 @@ function eb_init_gateway() {
 
 	if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
 		require_once plugin_dir_path(__FILE__) . 'class-wc-gateway-ebioro.php';
-		add_action('init', 'eb_wc_register_settlement_status');
-		add_filter('woocommerce_valid_order_statuses_for_payment', 'eb_wc_status_valid_for_payment', 10, 2);
+		// add_action('init', 'eb_wc_register_settlement_status');
+		// add_filter('woocommerce_valid_order_statuses_for_payment', 'eb_wc_status_valid_for_payment', 10, 2);
+		// add_filter('wc_order_statuses', 'eb_wc_add_status');
 		add_action('eb_check_orders', 'eb_wc_check_orders');
 		add_filter('woocommerce_payment_gateways', 'eb_wc_add_ebioro_class');
-		add_filter('wc_order_statuses', 'eb_wc_add_status');
 		add_action('woocommerce_admin_order_data_after_order_details', 'eb_order_meta_general');
 		add_action('woocommerce_order_details_after_order_table', 'eb_order_meta_general');
 		add_filter( 'plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-woocommerce.php', 'eb_add_setting_link' );
@@ -108,46 +108,46 @@ function eb_wc_check_orders() {
 	return $gateway->check_orders();
 }
 
-/**
- * Register new status with ID "wc-ebiorosettlementpending" and label "Ebioro Settlement Pending"
- */
-function eb_wc_register_settlement_status() {
-	register_post_status('wc-ebiorosettlementpending', array(
-		'label'                     => __('Ebioro Settlement Pending', 'ebioro-payment-woocommerce'),
-		'public'                    => true,
-		'show_in_admin_status_list' => true,
-		/* translators: WooCommerce order count in blockchain pending. */
-		'label_count'               => _n_noop('Ebioro Settlement Pending <span class="count">(%s)</span>', 'Ebioro Settlement Pending <span class="count">(%s)</span>'),
-	));
-}
+// /**
+//  * Register new status with ID "wc-ebiorosettlementpending" and label "Ebioro Settlement Pending"
+//  */
+// function eb_wc_register_settlement_status() {
+// 	register_post_status('wc-ebiorosettlementpending', array(
+// 		'label'                     => __('Ebioro Settlement Pending', 'ebioro-payment-woocommerce'),
+// 		'public'                    => true,
+// 		'show_in_admin_status_list' => true,
+// 		/* translators: WooCommerce order count in blockchain pending. */
+// 		'label_count'               => _n_noop('Ebioro Settlement Pending <span class="count">(%s)</span>', 'Ebioro Settlement Pending <span class="count">(%s)</span>'),
+// 	));
+// }
 
-/**
- * Register wc-ebiorosettlementpending status as valid for payment.
- */
-function eb_wc_status_valid_for_payment($statuses, $order) {
-	$statuses[] = 'wc-ebiorosettlementpending';
-	return $statuses;
-}
+// /**
+//  * Register wc-ebiorosettlementpending status as valid for payment.
+//  */
+// function eb_wc_status_valid_for_payment($statuses, $order) {
+// 	$statuses[] = 'wc-ebiorosettlementpending';
+// 	return $statuses;
+// }
 
-/**
- * Add registered status to list of WC Order statuses
- *
- * @param array $wc_statuses_arr Array of all order statuses on the website.
- */
-function eb_wc_add_status($wc_statuses_arr) {
-	$new_statuses_arr = array();
+// /**
+//  * Add registered status to list of WC Order statuses
+//  *
+//  * @param array $wc_statuses_arr Array of all order statuses on the website.
+//  */
+// function eb_wc_add_status($wc_statuses_arr) {
+// 	$new_statuses_arr = array();
 
-	// Add new order status after payment pending.
-	foreach ($wc_statuses_arr as $id => $label) {
-		$new_statuses_arr[$id] = $label;
+// 	// Add new order status after payment pending.
+// 	foreach ($wc_statuses_arr as $id => $label) {
+// 		$new_statuses_arr[$id] = $label;
 
-		if ('wc-pending' === $id) {  // after "Payment Pending" status.
-			$new_statuses_arr['wc-ebiorosettlementpending'] = __('Ebioro Settlement Pending', 'ebioro-payment-woocommerce');
-		}
-	}
+// 		if ('wc-pending' === $id) {  // after "Payment Pending" status.
+// 			$new_statuses_arr['wc-ebiorosettlementpending'] = __('Ebioro Settlement Pending', 'ebioro-payment-woocommerce');
+// 		}
+// 	}
 
-	return $new_statuses_arr;
-}
+// 	return $new_statuses_arr;
+// }
 
 /**
  * Add order Ebioro meta after General and before Billing
