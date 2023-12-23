@@ -86,7 +86,7 @@ class Ebioro_API_Handler {
 
         if (in_array($method, array('POST', 'PUT'))) {
             
-            $args['body'] = json_encode($params,JSON_UNESCAPED_SLASHES);
+            $args['body'] = json_encode($params,JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         
         } else {
 
@@ -229,7 +229,7 @@ class Ebioro_API_Handler {
         $timestamp = time();
 
         // Ensuring consistent JSON serialization
-        $body = $method != 'GET' ? json_encode($params, JSON_UNESCAPED_SLASHES) : '';
+        $body = $method != 'GET' ? json_encode($params, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : '';
         
         // Logging the string to be signed
         
