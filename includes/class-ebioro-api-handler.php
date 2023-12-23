@@ -28,7 +28,7 @@ class Ebioro_API_Handler {
      *
      * @var string Ebioro Test API url
      */
-    public static $test_api_url = 'https://test-merchant.ebioro.com'; #'http://localhost:3001';
+    public static $test_api_url = 'https://test-merchant.ebioro.com';
 
     /**
      * Ebioro API version
@@ -229,7 +229,7 @@ class Ebioro_API_Handler {
         $timestamp = time();
 
         // Ensuring consistent JSON serialization
-        $body = $method != 'GET' ? json_encode($params, JSON_UNESCAPED_SLASHES) : null;
+        $body = $method != 'GET' ? json_encode($params, JSON_UNESCAPED_SLASHES) : '';
         
         // Logging the string to be signed
         

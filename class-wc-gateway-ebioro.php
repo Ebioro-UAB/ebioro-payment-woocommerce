@@ -324,7 +324,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			}
 
 			$data = $result[1];
-			// self::log('Timeline: ' . print_r($timeline, true));
+			self::log('Updating status for order: ' . print_r($data, true));
 			$this->_update_order_status($order, $data);
 		}
 	}
@@ -458,52 +458,69 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 		$ebioro_order_status = $event_data['status'];
 		$ebioro_order_settlement_status = $event_data['settlement_status'];
 
-		// we are ignoring the state 'transaction_created' because woocommerce automatically
-		// sets the order status to Pending when created..
-		if ($ebioro_payload_state==='transaction_updated'){
+		// webhooks
+		if ($ebioro_payload_state){
 
-			if ('paid'===$ebioro_order_status && 'open'===$ebioro_order_settlement_status && 'pending' == $order->get_status()){
+			// we are ignoring the state 'transaction_created' because woocommerce automatically
+		    // sets the order status to Pending when created..
+			if ($ebioro_payload_state==='transaction_updated'){
 
-				$order->update_status( 'processing', __( 'Customer payment was successfully processed. Pending Ebioro payment', 'ebioro-payment-woocommerce' ) );
-				$order->payment_complete();
-
+				if ('paid'===$ebioro_order_status && 'open'===$ebioro_order_settlement_status && 'pending' == $order->get_status()){
+	
+					$order->update_status( 'processing', __( 'Customer payment was successfully processed. Pending Ebioro payment', 'ebioro-payment-woocommerce' ) );
+					$order->payment_complete();
+	
+				}
+	
+				if ('processing' === $ebioro_order_settlement_status && 'paid' === $ebioro_order_status ){
+	
+					$order->add_order_note( __( 'Ebioro payment has been initiated to your merchant account.', 'ebioro-payment-woocommerce' ) );
+	
+				}
+	
+				if ('paid' === $ebioro_order_settlement_status && 'paid' === $ebioro_order_status ){
+	
+					$order->add_order_note( __( 'Ebioro payment has been delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
+	
+				}
+	
+				if ('underpaid' === $ebioro_order_status){
+					$order->update_status('on-hold');
+					$order->update_status( 'on-hold', __( 'Ebioro payment has been underpaid by customer.', 'ebioro-payment-woocommerce' ) );
+	
+				}
+	
+				if ('expired' === $ebioro_order_status){
+					$order->update_status( 'cancelled', __( 'Ebioro payment expired.', 'ebioro-payment-woocommerce' ) );
+				}
+	
+				if ('canceled' ===$ebioro_order_status){
+					$order->update_status( 'cancelled', __( 'Ebioro payment canceled.', 'ebioro-payment-woocommerce' ) );
+				}
+	
+	
+			}
+	
+			if ($ebioro_payload_state ==='transaction_failed'){
+	
+				$order->add_order_note( __( 'Ebioro payment failed to be delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
+	
 			}
 
-			if ('processing' === $ebioro_order_settlement_status && 'paid' === $ebioro_order_status ){
+		}
 
-				$order->add_order_note( __( 'Ebioro payment has been initiated to your merchant account.', 'ebioro-payment-woocommerce' ) );
+		// no webhooks (ie. cron job that checks for the status of the transaction)
 
-			}
+		else {
 
-			if ('paid' === $ebioro_order_settlement_status && 'paid' === $ebioro_order_status ){
-
-				$order->add_order_note( __( 'Ebioro payment has been delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
-
-			}
-
-			if ('underpaid' === $ebioro_order_status){
-				$order->update_status('on-hold');
-				$order->update_status( 'on-hold', __( 'Ebioro payment has been underpaid by customer.', 'ebioro-payment-woocommerce' ) );
-
-			}
-
-			if ('expired' === $ebioro_order_status){
+			if ('expired' === $ebioro_order_status && 'pending' == $order->get_status()){
+				
 				$order->update_status( 'cancelled', __( 'Ebioro payment expired.', 'ebioro-payment-woocommerce' ) );
 			}
 
-			if ('canceled' ===$ebioro_order_status){
-				$order->update_status( 'cancelled', __( 'Ebioro payment canceled.', 'ebioro-payment-woocommerce' ) );
-			}
-
-
 		}
 
-		if ($ebioro_payload_state ==='transaction_failed'){
-
-			$order->add_order_note( __( 'Ebioro payment failed to be delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
-
-		}
-
+	
 		$statuses = array(
 			'customer_payment_status' => esc_attr($ebioro_order_status),
 			'ebioro_settlement_status' => esc_attr($ebioro_order_settlement_status),
