@@ -4,7 +4,7 @@ Tags: woocommerce, crypto, cryptocurrency, stablecoins, USDC, payments, payment 
 Requires at least: 5.0
 Tested up to: 8.2.1
 Requires PHP: 7.2
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPL-3.0+
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -75,12 +75,12 @@ Yes, just reach out to our support team at support@ebioro.com to get a test acco
 
 == Changelog ==
 
-= 1.1.0 =
+= 1.1.1 =
 * Initial release of Ebioro Payment Gateway for WooCommerce.
 
 == Upgrade Notice ==
 
-= 1.1.0 =
+= 1.1.1 =
 Initial release.
 
 == License ==

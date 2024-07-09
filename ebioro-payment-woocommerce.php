@@ -4,7 +4,7 @@
  * Description: Stablecoin (USDC) Payment Processor - A payment gateway that allows your customers to pay with stablecoins via Ebioro.
  * Author: Ebioro UAB
  * Author URI: https://www.ebioro.com/
- * Version: 1.1.0
+ * Version: 1.1.1
  * Text domain: ebioro-for-woocommerce
  * Domain Path: /languages
  * WC tested up to: 8.2.1
@@ -29,8 +29,11 @@ function eb_init_gateway() {
 		add_action('woocommerce_admin_order_data_after_order_details', 'eb_order_meta_general');
 		add_action('woocommerce_order_details_after_order_table', 'eb_order_meta_general');
 		add_filter( 'plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-woocommerce.php', 'eb_add_setting_link' );
-		add_filter( 'network_admin_plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-woocommerce.php', 'eb_add_setting_link' );
-		add_action( 'admin_enqueue_scripts', 'eb_enqueue' );
+		add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'eb_add_setting_link');
+        add_filter('network_admin_plugin_action_links_' . plugin_basename(__FILE__), 'eb_add_setting_link');
+        add_action('admin_enqueue_scripts', 'eb_enqueue');
+		// add_filter( 'network_admin_plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-woocommerce.php', 'eb_add_setting_link' );
+		// add_action( 'admin_enqueue_scripts', 'eb_enqueue' );
 	}
 }
 add_action('plugins_loaded', 'eb_init_gateway');
@@ -57,9 +60,11 @@ function eb_add_setting_link( $actions ){
 		'tab'       => 'checkout',
 		'section'   => 'ebioro'
 	);
-	return array_merge( array(
-		'settings' => '<a href="'. add_query_arg( $args, admin_url( 'admin.php' ) ) .'">'. __( 'Settings', 'ebioro-payment-woocommerce' ) .'</a>'
-	), $actions );
+	$settings_link = '<a href="' . add_query_arg($args, admin_url('admin.php')) . '">' . __('Ebioro settings', 'ebioro-payment-woocommerce') . '</a>';
+	// return array_merge( array(
+	// 	'settings' => '<a href="'. add_query_arg( $args, admin_url( 'admin.php' ) ) .'">'. __( 'Settings', 'ebioro-payment-woocommerce' ) .'</a>'
+	// ), $actions );
+	return array_merge(array('settings' => $settings_link), $actions);
 }
 
 /**
