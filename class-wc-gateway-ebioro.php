@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-class WC_Gateway_Ebioro extends WC_Payment_Gateway
+class Ebioro_Payment_Gateway extends WC_Payment_Gateway
 {
 
 	/**
@@ -39,8 +39,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 		$this->order_button_text = __('Proceed to Ebioro', 'ebioro-payment-woocommerce');
 		$this->method_title = __('Ebioro', 'ebioro-payment-woocommerce');
 		$this->method_description = '<p>' .
-			__('A payment gateway allows your customers to pay with the ebioro wallet', 'ebioro-payment-woocommerce');
-
+    		esc_html__('A payment gateway allows your customers to pay with the ebioro wallet', 'ebioro-payment-woocommerce') . '</p>';
 
 		$this->init_form_fields();
 		$this->init_settings();
@@ -57,7 +56,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 
 		add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 		add_filter('woocommerce_order_data_store_cpt_get_orders_query', array($this, 'get_order_by_payment_id'), 10, 2);
-		add_action('woocommerce_api_wc_gateway_ebioro', array($this, 'handle_webhook'));
+		add_action('woocommerce_api_wc_gateway_ebioro_payment_gateway', array($this, 'handle_webhook'));
 	}
 
 	/**
@@ -100,9 +99,14 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			$path = realpath($image_path . '/' . $m . '.png');
 			if ($path && dirname($path) === $image_path && is_file($path)) {
 				$url = WC_HTTPS::force_https_url(plugins_url('/assets/images/' . $m . '.png', __FILE__));
-				$icon_html .= '<img width="40" src="' . esc_attr($url) . '" alt="' . esc_attr__($m, 'ebioro-payment-woocommerce') . '" />';
+
+				// translators: %s is the payment method name
+				$alt_text = sprintf(esc_attr__('Payment method: %s', 'ebioro-payment-woocommerce'), $m);
+				$icon_html .= wp_get_attachment_image($attachment_id, 'thumbnail', false, array('alt' => $alt_text, 'width' => '40'));
+
 			}
 		}
+		
 
 		/** DOCBLOCK - Makes linter happy.
 		 *  
@@ -140,23 +144,23 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			'api_key' => array(
 				'title' => __('API Key', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
-				'description' => sprintf(__('Get your API Key from the Ebioro Settings page.', 'ebioro-payment-woocommerce')),
+				'description' => esc_html__('Get your API Key from the Ebioro Settings page.', 'ebioro-payment-woocommerce'),
 			),
 			'api_secret' => array(
 				'title' => __('API Secret', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
-				'description' => sprintf(__('Get your API Secret from the Ebioro Settings page.', 'ebioro-payment-woocommerce'))
+				'description' => esc_html__('Get your API Secret from the Ebioro Settings page.', 'ebioro-payment-woocommerce'),
 			),
-			'api_locale'	=> array(
-				'title'		=> __( 'Language of Payment Page', 'ebioro-payment-woocommerce' ),
-				'description'	=> __( 'Select the language in which your customers see the payment page', 'ebioro-payment-woocommerce' ),
-				'id'		=> 'woo_ebioro_api_locale',
-				'type'		=> 'select',
-				'options'	=> array(
-					'en'	=> __( 'English', 'ebioro-payment-woocommerce' ),
-					'es'	=> __( 'Spanish', 'ebioro-payment-woocommerce' )
+			'api_locale' => array(
+				'title' => esc_html__('Language of Payment Page', 'ebioro-payment-woocommerce'),
+				'description' => esc_html__('Select the language in which your customers see the payment page', 'ebioro-payment-woocommerce'),
+				'id' => 'woo_ebioro_api_locale',
+				'type' => 'select',
+				'options' => array(
+					'en' => esc_html__('English', 'ebioro-payment-woocommerce'),
+					'es' => esc_html__('Spanish', 'ebioro-payment-woocommerce'),
 				),
-				'default'	=> 'en'
+				'default' => 'en',
 			),
 			'test_mode' => array(
 				'title' => __('Enable test mode', 'ebioro-payment-woocommerce'),
@@ -167,22 +171,27 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			'test_api_key' => array(
 				'title' => __('Test API Key', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
-				'description' => __('Get your Test API Key from the Ebioro Settings page.', 'ebioro-payment-woocommerce')
+				'description' => esc_html__('Get your Test API Key from the Ebioro Settings page.', 'ebioro-payment-woocommerce'),
 			),
 			'test_api_secret' => array(
 				'title' => __('Test API Secret', 'ebioro-payment-woocommerce'),
 				'type' => 'text',
-				'description' => __('Get your Test API Secret from the Ebioro Settings page.', 'ebioro-payment-woocommerce')
+				'description' => esc_html__('Get your Test API Secret from the Ebioro Settings page.', 'ebioro-payment-woocommerce'),
 			),
 			'debug' => array(
 				'title' => __('Debug log', 'ebioro-payment-woocommerce'),
 				'type' => 'checkbox',
 				'label' => __('Enable logging', 'ebioro-payment-woocommerce'),
 				'default' => 'no',
-				'description' => sprintf(__('Log Ebioro API events inside %s', 'ebioro-payment-woocommerce'), '<code>' . \WC_Log_Handler_File::get_log_file_path($this->id) . '</code>'),
+				'description' => sprintf(
+					// translators: %s is the file path where the Ebioro API events are logged
+					esc_html__('Log Ebioro API events inside %s', 'ebioro-payment-woocommerce'),
+					'<code>' . esc_html(\WC_Log_Handler_File::get_log_file_path($this->id)) . '</code>'
+				),
 			),
 		);
 	}
+
 
 	/**
 	 * Process the payment and return the result.
@@ -225,13 +234,17 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			$this->get_webhook_url()
 		);
 
-		self::log("API Result: " . print_r($result, true));
-
+		if (defined('WP_DEBUG')) {
+			self::log("API Result: " . esc_html(wp_json_encode($result, true)));
+		}
+		
 		if (!$result[1]['id']) {
 			return array('result' => 'fail');
 		}
 
-		self::log("Redirect url: " . print_r($result[1]['hostedUrl'], true));
+		if (defined('WP_DEBUG')) {
+			self::log("Redirect url: " . esc_url(wp_json_encode($result[1]['hostedUrl'], true)));
+		}
 
 		$order->update_meta_data('_ebioro_payment_id', $result[1]['id']);
 		$order->save();
@@ -284,7 +297,7 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 	 */
 	public function get_webhook_url()
 	{
-		return add_query_arg('wc-api', 'WC_Gateway_Ebioro', trailingslashit(get_home_url()));
+		return add_query_arg('wc-api', 'Ebioro_Payment_Gateway', trailingslashit(get_home_url()));
 	}
 
 	/**
@@ -324,7 +337,9 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 			}
 
 			$data = $result[1];
-			self::log('Updating status for order: ' . print_r($data, true));
+			if (defined('WP_DEBUG')) {
+				self::log('Updating status for order: ' . esc_html(wp_json_encode($data, true)));
+			}
 			$this->_update_order_status($order, $data);
 		}
 	}
@@ -336,9 +351,11 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 	{
 
 		if (
-			'POST' !== $_SERVER['REQUEST_METHOD']
-			|| !isset($_GET['wc-api'])
-			|| 'WC_Gateway_Ebioro' !== $_GET['wc-api']
+			'POST' !== filter_input( INPUT_SERVER, 'REQUEST_METHOD', FILTER_SANITIZE_STRING )
+			|| !isset( $_GET['wc-api'] )
+			|| 'Ebioro_Payment_Gateway' !== sanitize_text_field( wp_unslash( $_GET['wc-api'] ) )
+			|| !isset( $_GET['_wpnonce'] ) 
+			|| !wp_verify_nonce( wp_unslash( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) ), 'ebioro_payment_action' )
 		) {
 			return;
 		}
@@ -346,11 +363,11 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 		$payload = file_get_contents('php://input');
 		
 		if (empty($payload) || !$this->validate_webhook($payload)) {
-			self::log('Incoming webhook failed validation: ' . print_r($payload, true));
+			self::log('Incoming webhook failed validation: ' . esc_html( wp_json_encode($payload, true) ) );
 			wp_die('Webhook validation failed', 'Webhook Error', array('response' => 401));
 		}
 
-		self::log('Webhook received event: ' . print_r($payload, true));
+		self::log('Webhook received event: ' . esc_html(wp_json_encode($payload, true)));
 
 		if (!empty($payload)) {
 			$payload_decoded = json_decode($payload, true);
@@ -381,9 +398,12 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 		if (!function_exists('getallheaders')) {
 			$headers = array();
 
+			$headers = [];
 			foreach ($_SERVER as $name => $value) {
-				if ('HTTP_' === substr($name, 0, 5)) {
-					$headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+				if (strpos($name, 'HTTP_') === 0) {
+					$sanitized_value = filter_var($value, FILTER_SANITIZE_STRING);
+					$header_name = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))));
+					$headers[$header_name] = $sanitized_value;
 				}
 			}
 
@@ -403,12 +423,19 @@ class WC_Gateway_Ebioro extends WC_Payment_Gateway
 	{
 		self::log('Checking Webhook response is valid');
 
-		if (!isset($_SERVER['HTTP_X_WEBHOOK_AUTH'])) {
-			self::log('Missing X-WEBHOOK-AUTH header');
+		$webhookAuthHeader = filter_input(INPUT_SERVER, 'HTTP_X_WEBHOOK_AUTH', FILTER_SANITIZE_STRING);
+
+		if (empty($webhookAuthHeader)) {
+			self::log('Missing or invalid X-WEBHOOK-AUTH header');
 			return false;
 		}
 
-		$sig = $_SERVER['HTTP_X_WEBHOOK_AUTH'];
+		$sig = filter_input(INPUT_SERVER, 'HTTP_X_WEBHOOK_AUTH', FILTER_SANITIZE_STRING);
+
+		if (empty($sig)) {
+			self::log('Invalid or missing X-WEBHOOK-AUTH header');
+			return false;
+		}
 
 		// Check if $payload is already a JSON string
 		$jsonString = is_string($payload) ? $payload : json_encode($payload);

@@ -73,8 +73,10 @@ class Ebioro_API_Handler {
      */
     public static function send_request($endpoint, $params = array(), $method = 'GET') {
         
-        self::log('Ebioro Request Args for ' . $endpoint . ': ' . print_r($params, true));
-
+        if ( defined( 'WP_DEBUG' ) ) {
+            self::log( 'Ebioro Request Args for ' . esc_html( $endpoint ) . ': ' . wp_json_encode( $params ) );
+        }        
+        
         $authHeaders = self::buildAuthHeaders($endpoint, $method, $params);
 
         $args = array(
@@ -95,7 +97,7 @@ class Ebioro_API_Handler {
 
         $response = wp_remote_request(esc_url_raw($url), $args);
 
-        self::log('the body to send ' . ': ' . print_r($args, true));
+        self::log( 'the body to send: ' . esc_html( wp_json_encode( $args, true ) ) );
 
         if (is_wp_error($response)) {
             
@@ -223,23 +225,19 @@ class Ebioro_API_Handler {
      * @return array
      */
     private static function buildAuthHeaders($path, $method, $params = array()) {
-
-
-        date_default_timezone_set('UTC');
-        $timestamp = time();
-
-        // Ensuring consistent JSON serialization
+    
+        $timestamp = current_time('timestamp'); 
+    
         $body = $method != 'GET' ? json_encode($params, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : '';
         
         // Logging the string to be signed
-        
         $tosign = $path . $timestamp . $method . $body;
         
-        self::log('String to be signed: ' . print_r($tosign, true));
-
+        self::log('String to be signed: ' . esc_html( wp_json_encode($tosign, true) ));
+    
         // Generate signature
         $signature = hash_hmac('sha256', $tosign, self::$api_secret);
-
+    
         // Prepare headers
         $headers = array(
             'Content-Type'          => 'application/json',
@@ -247,9 +245,10 @@ class Ebioro_API_Handler {
             'X-Digest-Signature'    => $signature,
             'X-Digest-Timestamp'    => $timestamp,
         );
-
+    
         return $headers;
     }
+    
 
     /**
      * Get the API URL

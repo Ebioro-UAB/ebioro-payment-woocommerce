@@ -1,10 +1,10 @@
-=== Ebioro Payment Gateway for WooCommerce ===
+=== Ebioro for WooCommerce ===
 Contributors: ebioro
-Tags: woocommerce, crypto, cryptocurrency, stablecoins, USDC, payments, payment gateway, payment processing, digital currencies
+Tags: woocommerce, crypto, cryptocurrency, payments, payment gateway
 Requires at least: 5.0
-Tested up to: 8.2.1
+Tested up to: 6.7
 Requires PHP: 7.2
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 License: GPL-3.0+
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -22,12 +22,23 @@ Accept stablecoin payments through Ebioro Payment Gateway for WooCommerce. This 
 * No chargebacks.
 * View all incoming payments and manage refunds via your Ebioro merchant dashboard.
 
+= API Dependency =
+
+This plugin relies on the **Ebioro API** for payment processing. By using this plugin, you are agreeing to the terms of service and privacy policy of Ebioro.
+
+* [Ebioro API Documentation](https://merchant-api.ebioro.com)
+* [Ebioro Terms of Use](https://www.ebioro.com/terms-of-service)
+* [Ebioro Privacy Policy](https://www.ebioro.com/privacy)
+
 = Customer journey =
 
 1. The customer adds items to their shopping cart and proceeds to checkout.
 2. The customer selects Ebioro as the payment method.
 3. A payment request is generated, and the customer completes the payment using their cryptocurrency wallet.
 4. Once the transaction is fully confirmed, Ebioro notifies the merchant and the corresponding amount is credited to the Ebioro merchant account.
+
+== Development ==
+To develop or modify the plugin, you can access the original unminified source files located in `/assets/js/admin` and `/assets/js/frontend`
 
 == Installation ==
 
@@ -83,5 +94,9 @@ Yes, just reach out to our support team at support@ebioro.com to get a test acco
 = 1.1.1 =
 Initial release.
 
+= 1.1.2 =
+Code optimization following Wordpress standards
+
 == License ==
 This plugin is distributed under the GPL-3.0+ license. For more information, please see [https://www.gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html).
+
