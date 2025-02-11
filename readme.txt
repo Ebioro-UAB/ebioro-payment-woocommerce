@@ -4,7 +4,7 @@ Tags: woocommerce, crypto, cryptocurrency, payments, payment gateway
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.2
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: GPL-3.0+
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -93,6 +93,9 @@ Yes, just reach out to our support team at support@ebioro.com to get a test acco
 
 = 1.1.1 =
 Initial release.
+
+= 1.1.2 =
+Code optimization following Wordpress standards
 
 = 1.1.2 =
 Code optimization following Wordpress standards
