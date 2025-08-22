@@ -99,7 +99,6 @@ Code optimization following Wordpress standards
 
 = 1.1.2 =
 Code optimization following Wordpress standards
-
 == License ==
 This plugin is distributed under the GPL-3.0+ license. For more information, please see [https://www.gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html).
 
