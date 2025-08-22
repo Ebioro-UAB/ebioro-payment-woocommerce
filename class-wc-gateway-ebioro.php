@@ -407,7 +407,6 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 		if ( ! function_exists( 'getallheaders' ) ) {
 			$headers = array();
 
-			$headers = array();
 			foreach ( $_SERVER as $name => $value ) {
 				if ( strpos( $name, 'HTTP_' ) === 0 ) {
 					$sanitized_value = filter_var( $value, FILTER_SANITIZE_STRING );
