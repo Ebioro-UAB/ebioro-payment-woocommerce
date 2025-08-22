@@ -516,7 +516,6 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 				}
 
 				if ( 'underpaid' === $ebioro_order_status ) {
-					$order->update_status( 'on-hold' );
 					$order->update_status( 'on-hold', __( 'Ebioro payment has been underpaid by customer.', 'ebioro-payment-woocommerce' ) );
 				}
 
