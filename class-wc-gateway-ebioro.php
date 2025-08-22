@@ -119,7 +119,10 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 					array(
 						'alt'    => $alt_text,
 						'width'  => '40',
-					)
+				$icon_html .= sprintf(
+					'<img src="%s" alt="%s" width="40" style="vertical-align:middle; margin-right:4px;" />',
+					esc_url( $url ),
+					esc_attr( $alt_text )
 				);
 			}
 		}
