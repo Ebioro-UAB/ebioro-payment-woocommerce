@@ -73,7 +73,9 @@ class Ebioro_API_Handler {
 	 *
 	 * @param string $endpoint La URL o el endpoint al que se realiza la solicitud.
 	 * @param array  $params  Los parámetros que se pasan en la solicitud.
-	 * @param string $method  El método HTTP (GET, POST, PUT, etc.).
+	 * @param string $endpoint The URL or endpoint to which the request is made.
+	 * @param array  $params  The parameters passed in the request.
+	 * @param string $method  The HTTP method (GET, POST, PUT, etc.).
 	 *
 	 * @return array
 	 */
