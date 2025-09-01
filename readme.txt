@@ -97,7 +97,6 @@ Initial release.
 = 1.1.2 =
 Code optimization following Wordpress standards
 
-= 1.1.2 =
 = 1.1.3 =
 Update: Stable tag bumped to 1.1.3
 == License ==
