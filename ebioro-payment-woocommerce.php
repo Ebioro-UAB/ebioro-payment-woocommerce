@@ -4,7 +4,7 @@
  * Description: Stablecoin (USDC) Payment Processor - A payment gateway that allows your customers to pay with stablecoins via Ebioro.
  * Author: Ebioro UAB
  * Author URI: https://www.ebioro.com/
- * Version: 1.1.4
+ * Version: 1.1.5
  * Text domain: ebioro-payment-woocommerce
  * Domain Path: /languages
  * License: GPL-3.0+
@@ -83,7 +83,7 @@ function ebioro_add_setting_link( $actions ) {
 		'tab'       => 'checkout',
 		'section'   => 'ebioro',
 	);
-	$settings_link = '<a href="' . add_query_arg( $args, admin_url( 'admin.php' ) ) . '">' . __( 'Ebioro settings', 'ebioro-payment-woocommerce' ) . '</a>';
+	$settings_link = '<a href="' . esc_url( add_query_arg( $args, admin_url( 'admin.php' ) ) ) . '">' . esc_html__( 'Ebioro settings', 'ebioro-payment-woocommerce' ) . '</a>';
 	// return array_merge( array(
 	// 	'settings' => '<a href="'. add_query_arg( $args, admin_url( 'admin.php' ) ) .'">'. __( 'Settings', 'ebioro-payment-woocommerce' ) .'</a>'
 	// ), $actions );
