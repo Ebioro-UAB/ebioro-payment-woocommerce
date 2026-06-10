@@ -390,7 +390,7 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 		if ( ! isset( $event_data['metadata']['order_id'] ) ) {
 			self::log( 'Webhook payload missing metadata.order_id' );
-			wp_die( 'Webhook validation failed', 'Webhook Error', array( 'response' => 401 ) );
+			wp_die( 'Invalid payload', 'Webhook Error', array( 'response' => 400 ) );
 		}
 
 		$order = wc_get_order( $event_data['metadata']['order_id'] );
@@ -503,9 +503,9 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	 * @param object   $event_data The transaction data provided by the webhook.
 	 */
 	public function _update_order_status( $order, $event_data ) {
-		$ebioro_payload_state = $event_data['type'];
-		$ebioro_order_status = $event_data['status'];
-		$ebioro_order_settlement_status = $event_data['settlement_status'];
+		$ebioro_payload_state = $event_data['type'] ?? '';
+		$ebioro_order_status = $event_data['status'] ?? '';
+		$ebioro_order_settlement_status = $event_data['settlement_status'] ?? '';
 
 		// webhooks.
 		if ( $ebioro_payload_state ) {
