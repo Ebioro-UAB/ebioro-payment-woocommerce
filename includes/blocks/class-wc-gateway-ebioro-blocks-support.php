@@ -1,4 +1,18 @@
 <?php
+/**
+ * Class for handling the Ebioro payment gateway blocks support.
+ *
+ * This file contains the class that integrates the Ebioro payment gateway with
+ * the WordPress blocks editor, providing block-based features for payment methods.
+ *
+ * @package   ebioro-payment-woocommerce
+ * @subpackage GatewayBlocks
+ * @since     1.1.2
+ * @author    Ebioro UAB
+ * @link      https://www.ebioro.com/
+ * @license   GPL-3.0+
+ */
+
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
 
 /**
@@ -6,89 +20,90 @@ use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodTyp
  *
  * @since 1.0.0
  */
-final class WC_Gateway_Ebioro_Blocks_Support extends AbstractPaymentMethodType {
+final class Ebioro_Gateway_Blocks_Support extends AbstractPaymentMethodType {
 
-    /**
-     * The gateway instance.
-     *
-     * @var WC_Gateway_Ebioro
-     */
-    private $gateway;
-
-    /**
-     * Payment method name/id/slug.
-     *
-     * @var string
-     */
-    protected $name = 'ebioro';
+	/**
+	 * The gateway instance.
+	 *
+	 * @var Ebioro_Payment_Gateway The gateway instance.
+	 */
+	private $gateway;
 
 
-    /**
-     * Initializes the payment method type.
-     */
-    public function initialize() {
-        $this->settings = get_option( 'woocommerce_ebioro_settings', [] );
-        $this->gateway = new WC_Gateway_Ebioro();
-    }
+	/**
+	 * Payment method name/id/slug.
+	 *
+	 * @var string
+	 */
+	protected $name = 'ebioro';
 
-    /**
-     * Returns if this payment method should be active. If false, the scripts will not be enqueued.
-     *
-     * @return boolean
-     */
-    public function is_active() {
-        return $this->gateway->is_available();
-    }
+	/**
+	 * Initializes the payment method type.
+	 */
+	public function initialize() {
+		$this->settings = get_option( 'woocommerce_ebioro_settings', array() );
+		$this->gateway  = new Ebioro_Payment_Gateway();
+	}
 
-    /**
-     * Returns an array of scripts/handles to be registered for this payment method.
-     *
-     * @return array
-     */
-    public function get_payment_method_script_handles() {
-       
-        
-        $script_path       = '/assets/js/frontend/blocks.js';
-        $script_asset_path = WC_Gateway_Ebioro::plugin_abspath() . 'assets/js/frontend/blocks.asset.php';
-        $script_asset      = file_exists($script_asset_path)
-            ? require($script_asset_path)
-            : ['dependencies' => [], 'version' => '1.0.0'];
-        $script_url        = WC_Gateway_Ebioro::plugin_url() . $script_path;
+	/**
+	 * Returns if this payment method should be active. If false, the scripts will not be enqueued.
+	 *
+	 * @return boolean
+	 */
+	public function is_active() {
+		return $this->gateway->is_available();
+	}
 
-        wp_register_script(
-            'wc-ebioro-payments-blocks',
-            $script_url,
-            $script_asset['dependencies'],
-            $script_asset['version'],
-            true
-        );
+	/**
+	 * Returns an array of scripts/handles to be registered for this payment method.
+	 *
+	 * @return array
+	 */
+	public function get_payment_method_script_handles() {
+		$script_path       = '/assets/js/frontend/blocks.js';
+		$script_asset_path = Ebioro_Payment_Gateway::plugin_abspath() . 'assets/js/frontend/blocks.asset.php';
+		$script_asset      = file_exists( $script_asset_path )
+			? require( $script_asset_path )
+			: array(
+				'dependencies' => array(),
+				'version'      => '1.0.0',
+			);
+		$script_url        = Ebioro_Payment_Gateway::plugin_url() . $script_path;
 
-        // Enqueue your custom blocks.js file
-        wp_enqueue_script(
-            'wc-ebioro-custom-blocks',
-            WC_Gateway_Ebioro::plugin_url() . '/assets/js/frontend/blocks.js',  // Adjust the path to your custom JS file
-            ['wc-ebioro-payments-blocks'],  // Dependencies
-            '1.0.0',  // Version
-            true
-        );
+		wp_register_script(
+			'wc-ebioro-payments-blocks',
+			$script_url,
+			$script_asset['dependencies'],
+			$script_asset['version'],
+			true
+		);
 
-        if (function_exists('wp_set_script_translations')) {
-            wp_set_script_translations('wc-ebioro-payments-blocks', 'woocommerce-gateway-ebioro', WC_Gateway_Ebioro::plugin_abspath() . 'languages/');
-        }
+		// Enqueue your custom blocks.js file.
+		wp_enqueue_script(
+			'wc-ebioro-custom-blocks',
+			Ebioro_Payment_Gateway::plugin_url() . '/assets/js/frontend/blocks.min.js',
+			array( 'wc-ebioro-payments-blocks' ),
+			'1.0.0',
+			true
+		);
 
-        return ['wc-ebioro-payments-blocks', 'wc-ebioro-custom-blocks'];
-    }
+		if ( function_exists( 'wp_set_script_translations' ) ) {
+			wp_set_script_translations( 'wc-ebioro-payments-blocks', 'woocommerce-gateway-ebioro', Ebioro_Payment_Gateway::plugin_abspath() . 'languages/' );
+		}
 
-    /**
-     * Returns an array of key=>value pairs of data made available to the payment methods script.
-     *
-     * @return array
-     */
-    public function get_payment_method_data() {
-        return [
-            'title'       => $this->get_setting('title'),
-            'description' => $this->get_setting('description'),
-            'supports'    => array_filter($this->gateway->supports, [$this->gateway, 'supports'])
-        ];
-    }
+		return array( 'wc-ebioro-payments-blocks', 'wc-ebioro-custom-blocks' );
+	}
+
+	/**
+	 * Returns an array of key=>value pairs of data made available to the payment methods script.
+	 *
+	 * @return array
+	 */
+	public function get_payment_method_data() {
+		return array(
+			'title'       => $this->get_setting( 'title' ),
+			'description' => $this->get_setting( 'description' ),
+			'supports'    => array_filter( $this->gateway->supports, array( $this->gateway, 'supports' ) ),
+		);
+	}
 }
