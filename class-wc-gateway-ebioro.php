@@ -69,7 +69,11 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 		add_filter( 'woocommerce_order_data_store_cpt_get_orders_query', array( $this, 'get_order_by_payment_id' ), 10, 2 );
-		add_action( 'woocommerce_api_wc_gateway_ebioro_payment_gateway', array( $this, 'handle_webhook' ) );
+		// WooCommerce lowercases the wc-api query value via sanitize_key() before firing
+		// the action, so the webhook URL (?wc-api=Ebioro_Payment_Gateway) maps to this
+		// exact hook name. A mismatch here makes WooCommerce answer 400 "-1" without
+		// ever reaching the plugin.
+		add_action( 'woocommerce_api_ebioro_payment_gateway', array( $this, 'handle_webhook' ) );
 	}
 
 	/**
@@ -112,16 +116,7 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 				// translators: %s is the payment method name.
 				$alt_text = sprintf( esc_attr__( 'Payment method: %s', 'ebioro-payment-woocommerce' ), $m );
-				$icon_html .= wp_get_attachment_image(
-					$attachment_id,
-					'thumbnail',
-					false,
-					array(
-						'alt'    => $alt_text,
-						'width'  => '40',
-					)
-				);
-				
+
 				$icon_html .= sprintf(
 					'<img src="%s" alt="%s" width="40" style="vertical-align:middle; margin-right:4px;" />',
 					esc_url( $url ),
@@ -258,7 +253,10 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 			self::log( 'API Result: ' . esc_html( wp_json_encode( $result, true ) ) );
 		}
 
-		if ( ! $result[1]['id'] ) {
+		// $result is [ success(bool), data|error ] — on failure the second element
+		// is an error string/status code, not a payment object.
+		if ( ! $result[0] || ! is_array( $result[1] ) || empty( $result[1]['id'] ) ) {
+			self::log( 'Payment creation failed: ' . esc_html( wp_json_encode( $result[1], true ) ), 'error' );
 			return array( 'result' => 'fail' );
 		}
 
@@ -364,14 +362,12 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	 * Handle requests sent to webhook.
 	 */
 	public function handle_webhook() {
-		if (
-			'POST' !== filter_input( INPUT_SERVER, 'REQUEST_METHOD', FILTER_SANITIZE_STRING )
-			|| ! isset( $_GET['wc-api'] )
-			|| 'Ebioro_Payment_Gateway' !== sanitize_text_field( wp_unslash( $_GET['wc-api'] ) )
-			|| ! isset( $_GET['_wpnonce'] )
-			|| ! wp_verify_nonce( wp_unslash( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) ), 'ebioro_payment_action' )
-		) {
-			return;
+		// Server-to-server call from Ebioro: authentication is the HMAC signature
+		// checked in validate_webhook(). WordPress nonces are session-bound CSRF
+		// tokens and can never be supplied by an external server — do not add one here.
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : '';
+		if ( 'POST' !== $request_method ) {
+			wp_die( 'Method not allowed', 'Webhook Error', array( 'response' => 405 ) );
 		}
 
 		$payload = file_get_contents( 'php://input' );
@@ -383,21 +379,29 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 		self::log( 'Webhook received event: ' . esc_html( wp_json_encode( $payload, true ) ) );
 
-		if ( ! empty( $payload ) ) {
-			$payload_decoded = json_decode( $payload, true );
-			$event_data = $payload_decoded['data'];
+		$payload_decoded = json_decode( $payload, true );
 
-			if ( ! isset( $event_data['metadata']['order_id'] ) ) {
-				self::log( 'Webhook with signature not created by ebioro' );
-				wp_die( 'Webhook validation failed', 'Webhook Error', array( 'response' => 401 ) );
-			}
-
-			$order_id = $event_data['metadata']['order_id'];
-			$this->_update_order_status( wc_get_order( $order_id ), $event_data );
-			wp_die( 'Webhook processed successfully', 'Webhook Success', array( 'response' => 200 ) );
+		if ( ! is_array( $payload_decoded ) || ! isset( $payload_decoded['data'] ) || ! is_array( $payload_decoded['data'] ) ) {
+			self::log( 'Webhook payload is not valid JSON with a data object' );
+			wp_die( 'Invalid payload', 'Webhook Error', array( 'response' => 400 ) );
 		}
 
-		wp_die( 'Ebioro Webhook Request Failure', 'Ebioro Webhook', array( 'response' => 500 ) );
+		$event_data = $payload_decoded['data'];
+
+		if ( ! isset( $event_data['metadata']['order_id'] ) ) {
+			self::log( 'Webhook payload missing metadata.order_id' );
+			wp_die( 'Webhook validation failed', 'Webhook Error', array( 'response' => 401 ) );
+		}
+
+		$order = wc_get_order( $event_data['metadata']['order_id'] );
+
+		if ( ! $order ) {
+			self::log( 'Webhook references unknown order: ' . esc_html( $event_data['metadata']['order_id'] ) );
+			wp_die( 'Order not found', 'Webhook Error', array( 'response' => 404 ) );
+		}
+
+		$this->_update_order_status( $order, $event_data );
+		wp_die( 'Webhook processed successfully', 'Webhook Success', array( 'response' => 200 ) );
 	}
 
 	/**
@@ -412,7 +416,7 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 			foreach ( $_SERVER as $name => $value ) {
 				if ( strpos( $name, 'HTTP_' ) === 0 ) {
-					$sanitized_value = filter_var( $value, FILTER_SANITIZE_STRING );
+					$sanitized_value = sanitize_text_field( wp_unslash( $value ) );
 					$header_name = str_replace(
 						' ',
 						'-',
@@ -441,22 +445,25 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	public function validate_webhook( $payload ) {
 		self::log( 'Checking Webhook response is valid' );
 
-		$webhookAuthHeader = filter_input( INPUT_SERVER, 'HTTP_X_WEBHOOK_AUTH', FILTER_SANITIZE_STRING );
+		// Read the header from $_SERVER with a getallheaders() fallback —
+		// filter_input( INPUT_SERVER ) is unreliable under nginx/FastCGI.
+		$sig = '';
+		if ( isset( $_SERVER['HTTP_X_WEBHOOK_AUTH'] ) ) {
+			$sig = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_WEBHOOK_AUTH'] ) );
+		} else {
+			$headers = array_change_key_case( $this->get_request_headers(), CASE_LOWER );
+			if ( isset( $headers['x-webhook-auth'] ) ) {
+				$sig = sanitize_text_field( $headers['x-webhook-auth'] );
+			}
+		}
 
-		if ( empty( $webhookAuthHeader ) ) {
+		if ( empty( $sig ) ) {
 			self::log( 'Missing or invalid X-WEBHOOK-AUTH header' );
 			return false;
 		}
 
-		$sig = filter_input( INPUT_SERVER, 'HTTP_X_WEBHOOK_AUTH', FILTER_SANITIZE_STRING );
-
-		if ( empty( $sig ) ) {
-			self::log( 'Invalid or missing X-WEBHOOK-AUTH header' );
-			return false;
-		}
-
-		// Check if $payload is already a JSON string
-		$jsonString = is_string( $payload ) ? $payload : json_encode( $payload );
+		// The signature is computed over the raw request body, byte for byte.
+		$jsonString = is_string( $payload ) ? $payload : wp_json_encode( $payload );
 
 		$api_secret = $this->api_secret;
 
@@ -505,7 +512,12 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 			// we are ignoring the state 'transaction_created' because woocommerce automatically.
 			// sets the order status to Pending when created..
 			if ( 'transaction_updated' === $ebioro_payload_state ) {
-				if ( 'paid' === $ebioro_order_status && 'open' === $ebioro_order_settlement_status && 'pending' === $order->get_status() ) {
+				// Complete the order on 'paid' whenever it is still awaiting payment,
+				// regardless of settlement_status — a first webhook may be missed and a
+				// later delivery (or a manual resend) can arrive with settlement already
+				// 'processing'/'paid'. 'on-hold' covers a previously underpaid order
+				// that the customer then topped up.
+				if ( 'paid' === $ebioro_order_status && in_array( $order->get_status(), array( 'pending', 'on-hold', 'failed' ), true ) ) {
 					$order->update_status( 'processing', __( 'Customer payment was successfully processed. Pending Ebioro payment', 'ebioro-payment-woocommerce' ) );
 					$order->payment_complete();
 				}
@@ -574,10 +586,7 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	 */
 	private static function is_test_mode() {
 		$data = get_option( 'woocommerce_ebioro_settings' );
-		if ( 'yes' === $data['test_mode'] ) {
-			return true;
-		}
-		return false;
+		return is_array( $data ) && isset( $data['test_mode'] ) && 'yes' === $data['test_mode'];
 	}
 
 	/**

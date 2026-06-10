@@ -219,7 +219,9 @@ class Ebioro_API_Handler {
 	 * @return array An associative array containing the generated authentication headers.
 	 */
 	private static function buildAuthHeaders( $path, $method, $params = array() ) {
-		$timestamp = current_time( 'timestamp' );
+		// time() is UTC. current_time('timestamp') is WP *local* time and would skew
+		// the digest timestamp by the store's UTC offset.
+		$timestamp = time();
 
 		$body = 'GET' != $method ? wp_json_encode( $params, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) : '';
 
