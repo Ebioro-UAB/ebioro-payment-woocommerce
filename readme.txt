@@ -4,7 +4,7 @@ Tags: woocommerce, crypto, cryptocurrency, payments, payment gateway
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.2
-Stable tag: 1.1.4
+Stable tag: 1.1.5
 License: GPL-3.0+
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -84,7 +84,30 @@ Yes, just reach out to our support team at support@ebioro.com to get a test acco
 2. Checkout Page - Ebioro payment payment page.
 3. Merchant Dashboard - Overview of payments and transactions in the Ebioro dashboard.
 
+== Third-Party Services ==
+
+This plugin connects your store to the Ebioro payments platform, operated by Ebioro UAB (Vilnius, Lithuania), to process stablecoin payments:
+
+* When a customer checks out, the plugin sends the order amount, currency, order reference, store name and product description to the Ebioro API to create the payment, and redirects the customer to the Ebioro payment page.
+* Ebioro notifies your store of payment status changes via signed webhooks so order statuses update automatically.
+* API endpoints used: https://merchant-api.ebioro.com (live) and https://test-merchant.ebioro.com (test mode).
+
+An Ebioro merchant account is required. Service terms and data handling:
+
+* Terms of Service: https://www.ebioro.com/terms-of-service
+* Privacy Policy: https://www.ebioro.com/privacy
+
+== Source Code ==
+
+All JavaScript ships in human-readable form: the uncompressed sources for every minified file are included alongside them (`assets/js/admin/payment.js` next to `payment.min.js`, `assets/js/frontend/blocks.js` next to `blocks.min.js`). The minified builds are produced with webpack from the same sources. The complete development setup is maintained by Ebioro UAB and available on request via support@ebioro.com.
+
 == Changelog ==
+
+= 1.1.5 =
+* Documentation: added Third-Party Services disclosure (Ebioro API endpoints, terms, privacy policy).
+* Documentation: added Source Code section documenting the uncompressed JavaScript sources shipped in assets/js/.
+* Hardening: webhook signature header is now read individually instead of iterating the whole request header set.
+* Fix: settings link on the Plugins page is now escaped with esc_url().
 
 = 1.1.4 =
 * Fix: webhook receiver was never executed (wrong WooCommerce wc-api hook name) — order statuses now update automatically on payment.
@@ -110,6 +133,10 @@ Update: Stable tag bumped to 1.1.3
 
 = 1.1.4 =
 Important: fixes automatic order status updates via webhooks. All merchants should update.
+
+= 1.1.5 =
+Documentation and hardening release.
+
 == License ==
 This plugin is distributed under the GPL-3.0+ license. For more information, please see [https://www.gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html).
 

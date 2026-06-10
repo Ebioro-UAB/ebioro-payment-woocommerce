@@ -405,35 +405,29 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	}
 
 	/**
-	 * Gets the incoming request headers. Some servers are not using
-	 * Apache and "getallheaders()" will not work so we may need to
-	 * build our own headers.
+	 * Reads a single request header, checking $_SERVER first and falling back
+	 * to getallheaders() (some FastCGI setups don't populate HTTP_* vars).
+	 * Only the requested key is touched — never the whole $_SERVER array.
+	 *
+	 * @param string $server_key Key in $_SERVER form (e.g. 'HTTP_X_WEBHOOK_AUTH').
+	 * @param string $header_name Header name (e.g. 'X-Webhook-Auth').
+	 * @return string Sanitized header value, or empty string when absent.
 	 */
-	public function get_request_headers()
-	{
-		if ( ! function_exists( 'getallheaders' ) ) {
-			$headers = array();
+	public function get_request_header( $server_key, $header_name ) {
+		if ( isset( $_SERVER[ $server_key ] ) ) {
+			return sanitize_text_field( wp_unslash( $_SERVER[ $server_key ] ) );
+		}
 
-			foreach ( $_SERVER as $name => $value ) {
-				if ( strpos( $name, 'HTTP_' ) === 0 ) {
-					$sanitized_value = sanitize_text_field( wp_unslash( $value ) );
-					$header_name = str_replace(
-						' ',
-						'-',
-						ucwords(
-							strtolower(
-								str_replace( '_', ' ', substr( $name, 5 ) )
-							)
-						)
-					);
-					$headers[ $header_name ] = $sanitized_value;
+		if ( function_exists( 'getallheaders' ) ) {
+			$wanted = strtolower( $header_name );
+			foreach ( getallheaders() as $name => $value ) {
+				if ( strtolower( $name ) === $wanted ) {
+					return sanitize_text_field( wp_unslash( $value ) );
 				}
 			}
-
-			return $headers;
-		} else {
-			return getallheaders();
 		}
+
+		return '';
 	}
 
 	/**
@@ -445,17 +439,9 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	public function validate_webhook( $payload ) {
 		self::log( 'Checking Webhook response is valid' );
 
-		// Read the header from $_SERVER with a getallheaders() fallback —
+		// Read only the one header we need ($_SERVER first, getallheaders() fallback) —
 		// filter_input( INPUT_SERVER ) is unreliable under nginx/FastCGI.
-		$sig = '';
-		if ( isset( $_SERVER['HTTP_X_WEBHOOK_AUTH'] ) ) {
-			$sig = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_WEBHOOK_AUTH'] ) );
-		} else {
-			$headers = array_change_key_case( $this->get_request_headers(), CASE_LOWER );
-			if ( isset( $headers['x-webhook-auth'] ) ) {
-				$sig = sanitize_text_field( $headers['x-webhook-auth'] );
-			}
-		}
+		$sig = $this->get_request_header( 'HTTP_X_WEBHOOK_AUTH', 'X-Webhook-Auth' );
 
 		if ( empty( $sig ) ) {
 			self::log( 'Missing or invalid X-WEBHOOK-AUTH header' );
