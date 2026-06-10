@@ -4,7 +4,7 @@ Tags: woocommerce, crypto, cryptocurrency, payments, payment gateway
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.2
-Stable tag: 1.1.3
+Stable tag: 1.1.4
 License: GPL-3.0+
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -86,6 +86,14 @@ Yes, just reach out to our support team at support@ebioro.com to get a test acco
 
 == Changelog ==
 
+= 1.1.4 =
+* Fix: webhook receiver was never executed (wrong WooCommerce wc-api hook name) — order statuses now update automatically on payment.
+* Fix: removed invalid nonce requirement on server-to-server webhooks; HMAC signature remains the authentication.
+* Fix: reliable signature header reading on nginx/FastCGI hosts; removed deprecated PHP filters (PHP 8.1+).
+* Fix: orders complete on a late or manually resent 'paid' webhook (previously only the first delivery could complete an order).
+* Fix: correct UTC timestamp in API request signatures (stores with non-UTC timezone).
+* Hardening: clearer error responses (400/404/405), guards against malformed payloads and failed API responses.
+
 = 1.1.1 =
 * Initial release of Ebioro Payment Gateway for WooCommerce.
 
@@ -99,6 +107,9 @@ Code optimization following Wordpress standards
 
 = 1.1.3 =
 Update: Stable tag bumped to 1.1.3
+
+= 1.1.4 =
+Important: fixes automatic order status updates via webhooks. All merchants should update.
 == License ==
 This plugin is distributed under the GPL-3.0+ license. For more information, please see [https://www.gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html).
 

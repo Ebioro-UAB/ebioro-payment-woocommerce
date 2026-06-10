@@ -4,7 +4,7 @@
  * Description: Stablecoin (USDC) Payment Processor - A payment gateway that allows your customers to pay with stablecoins via Ebioro.
  * Author: Ebioro UAB
  * Author URI: https://www.ebioro.com/
- * Version: 1.1.3
+ * Version: 1.1.4
  * Text domain: ebioro-payment-woocommerce
  * Domain Path: /languages
  * License: GPL-3.0+
