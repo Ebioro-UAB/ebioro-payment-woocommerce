@@ -94,12 +94,12 @@ This plugin connects your store to the Ebioro payments platform, operated by Ebi
 
 An Ebioro merchant account is required. Service terms and data handling:
 
-* Terms of Service: https://www.ebioro.com/terms
+* Terms of Service: https://www.ebioro.com/terms-of-service
 * Privacy Policy: https://www.ebioro.com/privacy
 
 == Source Code ==
 
-All JavaScript ships in human-readable form: the uncompressed sources for every minified file are included alongside them in `assets/js/` (`payment.js` next to `payment.min.js`, `blocks.js` next to `blocks.min.js`). The minified builds are produced with webpack from the same sources. The complete development setup is maintained by Ebioro UAB and available on request via support@ebioro.com.
+All JavaScript ships in human-readable form: the uncompressed sources for every minified file are included alongside them (`assets/js/admin/payment.js` next to `payment.min.js`, `assets/js/frontend/blocks.js` next to `blocks.min.js`). The minified builds are produced with webpack from the same sources. The complete development setup is maintained by Ebioro UAB and available on request via support@ebioro.com.
 
 == Changelog ==
 
@@ -136,6 +136,7 @@ Important: fixes automatic order status updates via webhooks. All merchants shou
 
 = 1.1.5 =
 Documentation and hardening release.
+
 == License ==
 This plugin is distributed under the GPL-3.0+ license. For more information, please see [https://www.gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html).
 

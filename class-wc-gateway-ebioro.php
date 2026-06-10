@@ -422,7 +422,7 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 			$wanted = strtolower( $header_name );
 			foreach ( getallheaders() as $name => $value ) {
 				if ( strtolower( $name ) === $wanted ) {
-					return sanitize_text_field( $value );
+					return sanitize_text_field( wp_unslash( $value ) );
 				}
 			}
 		}
