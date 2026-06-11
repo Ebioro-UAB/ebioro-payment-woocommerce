@@ -370,14 +370,14 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 		// tokens and can never be supplied by an external server — do not add one here.
 		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : '';
 		if ( 'POST' !== $request_method ) {
-			wp_die( 'Method not allowed', 'Webhook Error', array( 'response' => 405 ) );
+			$this->webhook_response( 405, 'Method not allowed' );
 		}
 
 		$payload = file_get_contents( 'php://input' );
 
 		if ( empty( $payload ) || ! $this->validate_webhook( $payload ) ) {
 			self::log( 'Incoming webhook failed validation: ' . esc_html( wp_json_encode( $payload, true ) ) );
-			wp_die( 'Webhook validation failed', 'Webhook Error', array( 'response' => 401 ) );
+			$this->webhook_response( 401, 'Invalid signature' );
 		}
 
 		self::log( 'Webhook received event: ' . esc_html( wp_json_encode( $payload, true ) ) );
@@ -386,25 +386,43 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 		if ( ! is_array( $payload_decoded ) || ! isset( $payload_decoded['data'] ) || ! is_array( $payload_decoded['data'] ) ) {
 			self::log( 'Webhook payload is not valid JSON with a data object' );
-			wp_die( 'Invalid payload', 'Webhook Error', array( 'response' => 400 ) );
+			$this->webhook_response( 400, 'Invalid payload' );
 		}
 
 		$event_data = $payload_decoded['data'];
 
 		if ( ! isset( $event_data['metadata']['order_id'] ) ) {
 			self::log( 'Webhook payload missing metadata.order_id' );
-			wp_die( 'Invalid payload', 'Webhook Error', array( 'response' => 400 ) );
+			$this->webhook_response( 400, 'Invalid payload' );
 		}
 
 		$order = wc_get_order( $event_data['metadata']['order_id'] );
 
 		if ( ! $order ) {
 			self::log( 'Webhook references unknown order: ' . esc_html( $event_data['metadata']['order_id'] ) );
-			wp_die( 'Order not found', 'Webhook Error', array( 'response' => 404 ) );
+			$this->webhook_response( 404, 'Order not found' );
 		}
 
 		$this->_update_order_status( $order, $event_data );
-		wp_die( 'Webhook processed successfully', 'Webhook Success', array( 'response' => 200 ) );
+		$this->webhook_response( 200, 'OK' );
+	}
+
+	/**
+	 * Send a short plain-text webhook response and stop.
+	 *
+	 * The webhook caller (Ebioro) only acts on the HTTP status code; a terse body
+	 * keeps the delivery log readable (wp_die() would emit a full HTML page that
+	 * gets truncated to head boilerplate in the dashboard).
+	 *
+	 * @param int    $code    HTTP status code.
+	 * @param string $message Short plain-text body.
+	 * @return never
+	 */
+	private function webhook_response( $code, $message ) {
+		status_header( (int) $code );
+		header( 'Content-Type: text/plain; charset=utf-8' );
+		echo esc_html( $message );
+		exit;
 	}
 
 	/**

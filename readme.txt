@@ -4,7 +4,7 @@ Tags: woocommerce, crypto, cryptocurrency, payments, payment gateway
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.2
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPL-3.0+
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -103,6 +103,9 @@ All JavaScript ships in human-readable form: the uncompressed sources for every 
 
 == Changelog ==
 
+= 1.2.1 =
+* Webhook endpoint now returns a short plain-text response (e.g. "OK") instead of a full HTML page, so the delivery log shows a readable server response. No change to status codes or behaviour.
+
 = 1.2.0 =
 * Idempotency: payment creation now sends an Idempotency-Key header so a retry or double-submit replays the original payment instead of creating a duplicate charge.
 * Checkout title now defaults to "Pay with crypto" (existing saved titles are unaffected).
@@ -125,6 +128,9 @@ All JavaScript ships in human-readable form: the uncompressed sources for every 
 * Initial release of Ebioro Payment Gateway for WooCommerce.
 
 == Upgrade Notice ==
+
+= 1.2.1 =
+Webhook responses are now short and readable in the Ebioro delivery log.
 
 = 1.2.0 =
 Prevents duplicate charges on checkout retries (Idempotency-Key); checkout title now defaults to "Pay with crypto".
