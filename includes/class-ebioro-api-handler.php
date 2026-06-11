@@ -85,9 +85,10 @@ class Ebioro_API_Handler {
 		}
 
 		// Auth headers are signed over path+timestamp+method+body; extra headers
-		// (e.g. Idempotency-Key) are not part of the signature, so appending them
-		// is safe.
-		$authHeaders = array_merge( self::buildAuthHeaders( $endpoint, $method, $params ), $extra_headers );
+		// (e.g. Idempotency-Key) are not part of the signature, so adding them is
+		// safe. Auth headers are listed last so an extra header can never clobber
+		// X-Digest-* or Content-Type.
+		$authHeaders = array_merge( $extra_headers, self::buildAuthHeaders( $endpoint, $method, $params ) );
 
 		$args = array(
 			'method'  => $method,

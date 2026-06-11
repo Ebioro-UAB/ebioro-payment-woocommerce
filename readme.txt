@@ -103,6 +103,10 @@ All JavaScript ships in human-readable form: the uncompressed sources for every 
 
 == Changelog ==
 
+= 1.2.0 =
+* Idempotency: payment creation now sends an Idempotency-Key header so a retry or double-submit replays the original payment instead of creating a duplicate charge.
+* Checkout title now defaults to "Pay with crypto" (existing saved titles are unaffected).
+
 = 1.1.5 =
 * Documentation: added Third-Party Services disclosure (Ebioro API endpoints, terms, privacy policy).
 * Documentation: added Source Code section documenting the uncompressed JavaScript sources shipped in assets/js/.
@@ -121,6 +125,9 @@ All JavaScript ships in human-readable form: the uncompressed sources for every 
 * Initial release of Ebioro Payment Gateway for WooCommerce.
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+Prevents duplicate charges on checkout retries (Idempotency-Key); checkout title now defaults to "Pay with crypto".
 
 = 1.1.1 =
 Initial release.
