@@ -416,6 +416,7 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	 *
 	 * @param int    $code    HTTP status code.
 	 * @param string $message Short plain-text body.
+	 * @return never
 	 */
 	private function webhook_response( $code, $message ) {
 		status_header( (int) $code );
