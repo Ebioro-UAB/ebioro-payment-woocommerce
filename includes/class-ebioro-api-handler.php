@@ -78,13 +78,17 @@ class Ebioro_API_Handler {
 	 *
 	 * @return array
 	 */
-	public static function send_request( $endpoint, $params = array(), $method = 'GET' ) {
+	public static function send_request( $endpoint, $params = array(), $method = 'GET', $extra_headers = array() ) {
 
 		if ( defined( 'WP_DEBUG' ) ) {
 			self::log( 'Ebioro Request Args for ' . esc_html( $endpoint ) . ': ' . wp_json_encode( $params ) );
 		}
 
-		$authHeaders = self::buildAuthHeaders( $endpoint, $method, $params );
+		// Auth headers are signed over path+timestamp+method+body; extra headers
+		// (e.g. Idempotency-Key) are not part of the signature, so adding them is
+		// safe. Auth headers are listed last so an extra header can never clobber
+		// X-Digest-* or Content-Type.
+		$authHeaders = array_merge( $extra_headers, self::buildAuthHeaders( $endpoint, $method, $params ) );
 
 		$args = array(
 			'method'  => $method,
@@ -162,7 +166,8 @@ class Ebioro_API_Handler {
 		$name = null,
 		$desc = null,
 		$cancelUrl = null,
-		$webhookUrl = null
+		$webhookUrl = null,
+		$idempotency_key = null
 	) {
 		// Initialize $args as an associative array.
 		$args = array();
@@ -201,8 +206,15 @@ class Ebioro_API_Handler {
 			}
 		}
 
+		// Optional idempotency: a retry/double-submit with the same key replays
+		// the original payment instead of creating a duplicate.
+		$extra_headers = array();
+		if ( ! empty( $idempotency_key ) ) {
+			$extra_headers['Idempotency-Key'] = $idempotency_key;
+		}
+
 		// Make the API request.
-		$result = self::send_request( '/payments', $args, 'POST' );
+		$result = self::send_request( '/payments', $args, 'POST', $extra_headers );
 
 		return $result;
 	}
