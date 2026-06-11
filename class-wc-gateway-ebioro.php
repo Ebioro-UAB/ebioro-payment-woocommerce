@@ -59,7 +59,7 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 		$this->timeout = ( new WC_DateTime() )->sub( new DateInterval( 'P1D' ) );
 
-		$this->title = $this->get_option( 'title' );
+		$this->title = $this->get_option( 'title', __( 'Pay with crypto', 'ebioro-payment-woocommerce' ) );
 		$this->description = $this->get_option( 'description' );
 		$this->api_key = ( self::is_test_mode() ) ? $this->get_option( 'test_api_key' ) : $this->get_option( 'api_key' );
 		$this->api_secret = ( self::is_test_mode() ) ? $this->get_option( 'test_api_secret' ) : $this->get_option( 'api_secret' );
@@ -147,7 +147,7 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 				'title'       => __( 'Title', 'ebioro-payment-woocommerce' ),
 				'type'        => 'text',
 				'description' => __( 'This controls the title which the user sees during checkout.', 'ebioro-payment-woocommerce' ),
-				'default'     => __( 'Ebioro wallet', 'ebioro-payment-woocommerce' ),
+				'default'     => __( 'Pay with crypto', 'ebioro-payment-woocommerce' ),
 				'desc_tip'    => true,
 			),
 			'description' => array(
@@ -246,7 +246,10 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 			null,
 			$description,
 			$this->get_cancel_url( $order ),
-			$this->get_webhook_url()
+			$this->get_webhook_url(),
+			// At most one Ebioro payment per order — a retry/double-submit replays
+			// the original instead of creating a duplicate payment.
+			'wc-order-' . $order->get_id()
 		);
 
 		if ( defined( 'WP_DEBUG' ) ) {
