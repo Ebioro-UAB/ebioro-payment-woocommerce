@@ -1,23 +1,18 @@
-let testMode				= document.getElementById('woocommerce_ebioro_test_mode');
-let testApiKey				= document.getElementById('woocommerce_ebioro_test_api_key');
-let testApiKeyWrapper		= testApiKey.closest('tr');
-let testApiSecret			= document.getElementById('woocommerce_ebioro_test_api_secret');
-let testApiSecretWrapper	= testApiSecret.closest('tr');
+const testMode        = document.getElementById('woocommerce_ebioro_test_mode');
+const testApiKey      = document.getElementById('woocommerce_ebioro_test_api_key');
+const testApiSecret   = document.getElementById('woocommerce_ebioro_test_api_secret');
 
-if ( testMode.checked === true ){
-	testApiKeyWrapper.setAttribute('style','display:inline-flex')
-	testApiSecretWrapper.setAttribute('style','display:inline-flex')
-} else {
-	testApiKeyWrapper.setAttribute('style','display:none')
-	testApiSecretWrapper.setAttribute('style','display:none')
+// Bail out unless we're on the gateway settings screen where these fields exist.
+if (testMode && testApiKey && testApiSecret) {
+	const testApiKeyWrapper    = testApiKey.closest('tr');
+	const testApiSecretWrapper = testApiSecret.closest('tr');
+
+	const sync = () => {
+		const display = testMode.checked ? 'inline-flex' : 'none';
+		if (testApiKeyWrapper)    testApiKeyWrapper.style.display = display;
+		if (testApiSecretWrapper) testApiSecretWrapper.style.display = display;
+	};
+
+	sync();
+	testMode.addEventListener('change', sync);
 }
-
-testMode.addEventListener('change', function(){
-	if ( this.checked === true ){
-		testApiKeyWrapper.setAttribute('style','display:inline-flex')
-		testApiSecretWrapper.setAttribute('style','display:inline-flex')
-	} else {
-		testApiKeyWrapper.setAttribute('style','display:none')
-		testApiSecretWrapper.setAttribute('style','display:none')
-	}
-})

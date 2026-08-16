@@ -37,12 +37,25 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	public static $log = false;
 
 	/**
-	 * Timeout for archiving orders
+	 * Resolved API key for the active mode (live or test).
 	 *
-	 * @var WC_DateTime Timeout for archiving orders
+	 * @var string
 	 */
-	protected $timeout;
+	protected $api_key;
 
+	/**
+	 * Resolved API secret for the active mode (live or test).
+	 *
+	 * @var string
+	 */
+	protected $api_secret;
+
+	/**
+	 * Whether the "Debug log" option is enabled.
+	 *
+	 * @var bool
+	 */
+	protected $debug = false;
 
 	/**
 	 * Constructor for the gateway.
@@ -56,8 +69,6 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 		$this->init_form_fields();
 		$this->init_settings();
-
-		$this->timeout = ( new WC_DateTime() )->sub( new DateInterval( 'P1D' ) );
 
 		$this->title = $this->get_option( 'title', __( 'Pay with crypto', 'ebioro-payment-woocommerce' ) );
 		$this->description = $this->get_option( 'description' );
@@ -92,6 +103,40 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 				$level
 			);
 		}
+	}
+
+	/**
+	 * Verbose logging, emitted only when WP_DEBUG is actually truthy AND the
+	 * gateway's Debug log option is on. `defined('WP_DEBUG')` alone is always true
+	 * (wp-settings.php defines it, defaulting to false), so it must be evaluated,
+	 * not merely tested for existence.
+	 *
+	 * @param string $message Log message.
+	 */
+	public static function debug_log( $message ) {
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			self::log( $message );
+		}
+	}
+
+	/**
+	 * Supported store currencies. Ebioro only quotes these; on any other
+	 * currency the API rejects the charge, so the gateway must not offer itself.
+	 *
+	 * @var string[]
+	 */
+	const SUPPORTED_CURRENCIES = array( 'USD', 'EUR', 'CAD', 'GBP' );
+
+	/**
+	 * Only offer the gateway when the store currency is one Ebioro supports.
+	 *
+	 * @return bool
+	 */
+	public function is_available() {
+		if ( ! in_array( get_woocommerce_currency(), self::SUPPORTED_CURRENCIES, true ) ) {
+			return false;
+		}
+		return parent::is_available();
 	}
 
 	/**
@@ -157,14 +202,20 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 				'description' => __( 'This controls the description which the user sees during checkout.', 'ebioro-payment-woocommerce' ),
 				'default'     => __( 'Pay with ease using the ebioro wallet.', 'ebioro-payment-woocommerce' ),
 			),
+			'show_icons' => array(
+				'title'       => __( 'Payment icons', 'ebioro-payment-woocommerce' ),
+				'type'        => 'checkbox',
+				'label'       => __( 'Show payment method icons at checkout.', 'ebioro-payment-woocommerce' ),
+				'default'     => 'yes',
+			),
 			'api_key' => array(
 				'title'       => __( 'API Key', 'ebioro-payment-woocommerce' ),
-				'type'        => 'text',
+				'type'        => 'password',
 				'description' => esc_html__( 'Get your API Key from the Ebioro Settings page.', 'ebioro-payment-woocommerce' ),
 			),
 			'api_secret' => array(
 				'title'       => __( 'API Secret', 'ebioro-payment-woocommerce' ),
-				'type'        => 'text',
+				'type'        => 'password',
 				'description' => esc_html__( 'Get your API Secret from the Ebioro Settings page.', 'ebioro-payment-woocommerce' ),
 			),
 			'api_locale' => array(
@@ -186,12 +237,12 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 			),
 			'test_api_key' => array(
 				'title'       => __( 'Test API Key', 'ebioro-payment-woocommerce' ),
-				'type'        => 'text',
+				'type'        => 'password',
 				'description' => esc_html__( 'Get your Test API Key from the Ebioro Settings page.', 'ebioro-payment-woocommerce' ),
 			),
 			'test_api_secret' => array(
 				'title'       => __( 'Test API Secret', 'ebioro-payment-woocommerce' ),
-				'type'        => 'text',
+				'type'        => 'password',
 				'description' => esc_html__( 'Get your Test API Secret from the Ebioro Settings page.', 'ebioro-payment-woocommerce' ),
 			),
 			'debug' => array(
@@ -232,48 +283,157 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 		$this->init_api();
 
-		// Create a new charge.
+		// Reuse an already-open payment for this order rather than minting a second one.
+		// This covers a customer returning to "Pay for order", and — importantly across
+		// this upgrade — an order whose original payment was created under the previous
+		// idempotency-key format: without this, a new key would create a duplicate
+		// payment, overwrite _ebioro_payment_id, and the original payment's webhook
+		// would then be rejected by the payment-id binding check and lost. Only reused
+		// when amount and currency still match (the cart may have changed).
+		$existing = $this->get_open_payment_for_order( $order );
+		if ( $existing ) {
+			$redirect = $this->payment_redirect_url( $existing );
+			if ( '' !== $redirect ) {
+				self::debug_log( 'Reusing open payment ' . ( $existing['id'] ?? '' ) . ' for order ' . $order->get_id() );
+				return array(
+					'result'   => 'success',
+					'redirect' => $redirect,
+				);
+			}
+		}
+
+		// Create a new charge. Only order_id is needed to resolve the order on the
+		// webhook; order_key is deliberately NOT sent — it is a capability secret
+		// for the order-pay/received pages and must not travel through the API or logs.
 		$metadata = array(
 			'order_id' => $order->get_id(),
-			'order_key' => $order->get_order_key(),
 			'source' => 'woocommerce',
 		);
 		$result = Ebioro_API_Handler::create_payment(
 			$order->get_total(),
-			get_woocommerce_currency(),
+			// Charge in the ORDER's currency (multi-currency stores diverge from the
+			// store base currency returned by get_woocommerce_currency()).
+			$order->get_currency(),
 			$metadata,
 			$this->get_return_url( $order ),
 			null,
 			$description,
 			$this->get_cancel_url( $order ),
 			$this->get_webhook_url(),
-			// At most one Ebioro payment per order — a retry/double-submit replays
-			// the original instead of creating a duplicate payment.
-			'wc-order-' . $order->get_id()
+			// Idempotency key: namespaced by site + order + order-key so two stores
+			// sharing one merchant credential (staging/prod, multi-store) never collide
+			// on the same auto-increment order id. A genuine same-order retry (same
+			// site, same order) reuses the key so the API replays instead of
+			// double-creating.
+			$this->get_idempotency_key( $order )
 		);
 
-		if ( defined( 'WP_DEBUG' ) ) {
-			self::log( 'API Result: ' . esc_html( wp_json_encode( $result, true ) ) );
-		}
+		self::debug_log( 'Payment creation result: ' . wp_json_encode( array( 'ok' => (bool) $result[0], 'id' => is_array( $result[1] ) ? ( $result[1]['id'] ?? null ) : $result[1] ) ) );
 
 		// $result is [ success(bool), data|error ] — on failure the second element
 		// is an error string/status code, not a payment object.
 		if ( ! $result[0] || ! is_array( $result[1] ) || empty( $result[1]['id'] ) ) {
-			self::log( 'Payment creation failed: ' . esc_html( wp_json_encode( $result[1], true ) ), 'error' );
-			return array( 'result' => 'fail' );
+			self::log( 'Payment creation failed: ' . esc_html( wp_json_encode( is_array( $result[1] ) ? ( $result[1]['id'] ?? '' ) : $result[1] ) ), 'error' );
+			wc_add_notice(
+				__( 'We could not start your Ebioro payment. Please try again or choose another payment method.', 'ebioro-payment-woocommerce' ),
+				'error'
+			);
+			// WooCommerce convention is 'failure' (not 'fail'); anything but 'success'
+			// aborts checkout, and 'failure' makes core surface the notice above.
+			return array( 'result' => 'failure' );
 		}
 
-		if ( defined( 'WP_DEBUG' ) ) {
-			self::log( 'Redirect url: ' . esc_url( wp_json_encode( $result[1]['hostedUrl'], true ) ) );
+		// Prefer the tokenless short link over hostedUrl: hostedUrl carries a
+		// merchant-scoped auth token in the query string, which would then sit in the
+		// customer's browser history and referrer headers. A successful create with no
+		// usable redirect URL is a failure — never hand WooCommerce a null redirect.
+		$redirect = $this->payment_redirect_url( $result[1] );
+		if ( '' === $redirect ) {
+			self::log( 'Payment created but no redirect URL returned for order ' . $order->get_id(), 'error' );
+			wc_add_notice(
+				__( 'We could not start your Ebioro payment. Please try again or choose another payment method.', 'ebioro-payment-woocommerce' ),
+				'error'
+			);
+			return array( 'result' => 'failure' );
 		}
 
 		$order->update_meta_data( '_ebioro_payment_id', $result[1]['id'] );
+		// Record the mode the payment was created in so webhooks signed by the other
+		// environment (test vs live) can be rejected in _update_order_status().
+		$order->update_meta_data( '_ebioro_mode', self::is_test_mode() ? 'test' : 'live' );
 		$order->save();
 
 		return array(
 			'result' => 'success',
-			'redirect' => $result[1]['hostedUrl'],
+			'redirect' => $redirect,
 		);
+	}
+
+	/**
+	 * Build a per-site, per-order idempotency key.
+	 *
+	 * @param WC_Order $order Order object.
+	 * @return string
+	 */
+	protected function get_idempotency_key( $order ) {
+		$seed = home_url() . '|' . $order->get_id() . '|' . $order->get_order_key();
+		return 'wc-' . substr( hash( 'sha256', $seed ), 0, 40 );
+	}
+
+	/**
+	 * Return the order's currently-attached Ebioro payment if it is still open AND
+	 * still matches the order's amount and currency, else null.
+	 *
+	 * @param WC_Order $order Order object.
+	 * @return array|null Payment data array, or null.
+	 */
+	protected function get_open_payment_for_order( $order ) {
+		$payment_id = $order->get_meta( '_ebioro_payment_id' );
+		if ( empty( $payment_id ) ) {
+			return null;
+		}
+
+		$result = Ebioro_API_Handler::send_request( '/payments/' . rawurlencode( $payment_id ) );
+		if ( empty( $result[0] ) || ! is_array( $result[1] ) ) {
+			return null;
+		}
+		$payment = $result[1];
+
+		if ( ! isset( $payment['status'] ) || 'open' !== $payment['status'] ) {
+			return null;
+		}
+
+		// Only reuse if amount + currency still match the order (the cart may have
+		// changed since the payment was created). Both sides are compared in minor
+		// units (cents). NOTE the deliberate asymmetry: get_total() is major units so
+		// it is multiplied by 100, but payment.amount.value on a GET response is
+		// ALREADY in minor units (it echoes the smallest-unit integer sent at create
+		// time via convert_to_smallest_unit()), so it must NOT be multiplied. Do not
+		// "fix" this into symmetry — that would break reuse matching.
+		$want_amount      = (int) round( (float) $order->get_total() * 100 );
+		$existing_amount  = isset( $payment['amount']['value'] ) ? (int) round( (float) $payment['amount']['value'] ) : null;
+		$existing_curr    = isset( $payment['amount']['currency'] ) ? strtoupper( $payment['amount']['currency'] ) : '';
+		if ( $existing_amount !== $want_amount || $existing_curr !== strtoupper( $order->get_currency() ) ) {
+			return null;
+		}
+
+		return $payment;
+	}
+
+	/**
+	 * Resolve the redirect URL for a payment, preferring the tokenless short link.
+	 *
+	 * @param array $payment Payment data array.
+	 * @return string URL, or '' when none is available.
+	 */
+	protected function payment_redirect_url( $payment ) {
+		if ( ! empty( $payment['shortUrl'] ) ) {
+			return $payment['shortUrl'];
+		}
+		if ( ! empty( $payment['hostedUrl'] ) ) {
+			return $payment['hostedUrl'];
+		}
+		return '';
 	}
 
 	/**
@@ -315,38 +475,57 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	 * @return string
 	 */
 	public function get_webhook_url() {
-		return add_query_arg( 'wc-api', 'Ebioro_Payment_Gateway', trailingslashit( get_home_url() ) );
+		// Force https: Ebioro refuses to deliver webhooks to an http endpoint, and
+		// get_home_url() can return an http scheme on mixed-config stores.
+		return add_query_arg( 'wc-api', 'Ebioro_Payment_Gateway', set_url_scheme( trailingslashit( get_home_url() ), 'https' ) );
 	}
 
 	/**
-	 * Check payment statuses on orders and update order statuses.
+	 * Reconcile still-pending Ebioro orders against the API (hourly cron backstop
+	 * for missed webhooks). Paginates so a backlog larger than one page is not
+	 * silently truncated.
 	 */
 	public function check_orders() {
 		$this->init_api();
 
-		// Check the status of non-archived Ebioro orders.
-		$orders = wc_get_orders(
+		// Snapshot the ids of all still-pending Ebioro orders FIRST, then process the
+		// fixed list. Processing an order can move it out of `wc-pending` (complete or
+		// cancel it); paginating the live query while it mutates would let orders that
+		// shift across a page boundary be skipped. The cap bounds a single cron run;
+		// anything beyond it is picked up on the next run (and logged).
+		$cap = 500;
+		$order_ids = wc_get_orders(
 			array(
-				'ebioro_archived' => false,
-				'status' => array( 'wc-pending' ),
+				'status'     => array( 'wc-pending' ),
+				'limit'      => $cap,
+				'orderby'    => 'ID',
+				'order'      => 'ASC',
+				'return'     => 'ids',
 				'meta_query' => array(
 					array(
-						'key' => '_ebioro_archived',
-						'compare' => 'NOT EXISTS',
-					),
-					array(
-						'key' => '_ebioro_payment_id',
+						'key'     => '_ebioro_payment_id',
 						'compare' => 'EXISTS',
 					),
 				),
-				),
+			)
 		);
 
-		foreach ( $orders as $order ) {
+		if ( count( $order_ids ) >= $cap ) {
+			self::log( "Reconciliation processed the first {$cap} pending orders this run; the remainder will be handled on the next run." );
+		}
+
+		foreach ( $order_ids as $order_id ) {
+			$order = wc_get_order( $order_id );
+			if ( ! $order ) {
+				continue;
+			}
 			$payment_id = $order->get_meta( '_ebioro_payment_id' );
+			if ( empty( $payment_id ) ) {
+				continue;
+			}
 
 			usleep( 300000 );  // Ensure we don't hit the rate limit.
-			$result = Ebioro_API_Handler::send_request( '/payments/' . $payment_id );
+			$result = Ebioro_API_Handler::send_request( '/payments/' . rawurlencode( $payment_id ) );
 
 			if ( ! $result[0] ) {
 				self::log( 'Failed to fetch order updates for: ' . $order->get_id() );
@@ -354,9 +533,7 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 			}
 
 			$data = $result[1];
-			if ( defined( 'WP_DEBUG' ) ) {
-				self::log( 'Updating status for order: ' . esc_html( wp_json_encode( $data, true ) ) );
-			}
+			self::debug_log( 'Reconciling order ' . $order->get_id() . ': status=' . ( $data['status'] ?? '' ) . ' settlement=' . ( $data['settlement_status'] ?? '' ) );
 			$this->_update_order_status( $order, $data );
 		}
 	}
@@ -376,11 +553,9 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 		$payload = file_get_contents( 'php://input' );
 
 		if ( empty( $payload ) || ! $this->validate_webhook( $payload ) ) {
-			self::log( 'Incoming webhook failed validation: ' . esc_html( wp_json_encode( $payload, true ) ) );
+			self::log( 'Incoming webhook failed signature validation' );
 			$this->webhook_response( 401, 'Invalid signature' );
 		}
-
-		self::log( 'Webhook received event: ' . esc_html( wp_json_encode( $payload, true ) ) );
 
 		$payload_decoded = json_decode( $payload, true );
 
@@ -390,6 +565,8 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 		}
 
 		$event_data = $payload_decoded['data'];
+
+		self::debug_log( 'Webhook received: id=' . ( $event_data['id'] ?? '' ) . ' type=' . ( $event_data['type'] ?? '' ) . ' status=' . ( $event_data['status'] ?? '' ) . ' order=' . ( $event_data['metadata']['order_id'] ?? '' ) );
 
 		if ( ! isset( $event_data['metadata']['order_id'] ) ) {
 			self::log( 'Webhook payload missing metadata.order_id' );
@@ -401,6 +578,22 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 		if ( ! $order ) {
 			self::log( 'Webhook references unknown order: ' . esc_html( $event_data['metadata']['order_id'] ) );
 			$this->webhook_response( 404, 'Order not found' );
+		}
+
+		// Defence in depth: only act on orders that are actually paying via Ebioro.
+		if ( $order->get_payment_method() !== $this->id ) {
+			self::log( 'Webhook for non-Ebioro order ' . $order->get_id() . ' ignored.' );
+			$this->webhook_response( 200, 'Ignored: not an Ebioro order' );
+		}
+
+		// Bind the event to the payment currently attached to the order. A superseded
+		// payment (a retry created a newer one) or a spoofed id for another order must
+		// not drive this order's state. Answer 200 so Ebioro does not record a failed
+		// delivery for a legitimately stale event.
+		$bound_payment_id = $order->get_meta( '_ebioro_payment_id' );
+		if ( $bound_payment_id && ! empty( $event_data['id'] ) && ! hash_equals( (string) $bound_payment_id, (string) $event_data['id'] ) ) {
+			self::log( 'Webhook payment ' . esc_html( $event_data['id'] ) . ' does not match bound payment for order ' . $order->get_id() . ' — ignored.' );
+			$this->webhook_response( 200, 'Ignored: stale payment' );
 		}
 
 		$this->_update_order_status( $order, $event_data );
@@ -504,68 +697,160 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	}
 
 	/**
-	 * Update the status of an order from a given timeline.
+	 * Apply an Ebioro payment status to an order.
+	 *
+	 * Called from two sources with the same payload shape:
+	 *  - webhook `transaction_updated` events (real-time), and
+	 *  - the hourly reconciliation poll, whose GET response `type` is `order`
+	 *    (not a `transaction_*` event). Anything that is not a `transaction_*`
+	 *    event is therefore treated as a status snapshot.
+	 *
+	 * Cancellation-class statuses (`expired`/`canceled`/`underpaid`) only ever
+	 * downgrade an order that is still awaiting payment — they can never undo an
+	 * order that has already been paid (here, via a second Ebioro delivery, or
+	 * out of band through another gateway).
 	 *
 	 * @param WC_Order $order      The WooCommerce order object.
-	 * @param object   $event_data The transaction data provided by the webhook.
+	 * @param array    $event_data The transaction/payment data.
 	 */
 	public function _update_order_status( $order, $event_data ) {
-		$ebioro_payload_state = $event_data['type'] ?? '';
-		$ebioro_order_status = $event_data['status'] ?? '';
-		$ebioro_order_settlement_status = $event_data['settlement_status'] ?? '';
+		$payload_type      = $event_data['type'] ?? '';
+		$order_status      = $event_data['status'] ?? '';
+		$settlement_status = $event_data['settlement_status'] ?? '';
+		$event_mode        = $event_data['mode'] ?? '';
+		$event_updated_at  = isset( $event_data['updatedAt'] ) ? strtotime( (string) $event_data['updatedAt'] ) : 0;
 
-		// webhooks.
-		if ( $ebioro_payload_state ) {
-			// we are ignoring the state 'transaction_created' because woocommerce automatically.
-			// sets the order status to Pending when created..
-			if ( 'transaction_updated' === $ebioro_payload_state ) {
-				// Complete the order on 'paid' whenever it is still awaiting payment,
-				// regardless of settlement_status — a first webhook may be missed and a
-				// later delivery (or a manual resend) can arrive with settlement already
-				// 'processing'/'paid'. 'on-hold' covers a previously underpaid order
-				// that the customer then topped up.
-				if ( 'paid' === $ebioro_order_status && in_array( $order->get_status(), array( 'pending', 'on-hold', 'failed' ), true ) ) {
-					$order->update_status( 'processing', __( 'Customer payment was successfully processed. Pending Ebioro payment', 'ebioro-payment-woocommerce' ) );
-					$order->payment_complete();
-				}
-
-				if ( 'processing' === $ebioro_order_settlement_status && 'paid' === $ebioro_order_status ) {
-					$order->add_order_note( __( 'Ebioro payment has been initiated to your merchant account.', 'ebioro-payment-woocommerce' ) );
-				}
-
-				if ( 'paid' === $ebioro_order_settlement_status && 'paid' === $ebioro_order_status ) {
-					$order->add_order_note( __( 'Ebioro payment has been delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
-				}
-
-				if ( 'underpaid' === $ebioro_order_status ) {
-					$order->update_status( 'on-hold', __( 'Ebioro payment has been underpaid by customer.', 'ebioro-payment-woocommerce' ) );
-				}
-
-				if ( 'expired' === $ebioro_order_status ) {
-					$order->update_status( 'cancelled', __( 'Ebioro payment expired.', 'ebioro-payment-woocommerce' ) );
-				}
-
-				if ( 'canceled' === $ebioro_order_status ) {
-					$order->update_status( 'cancelled', __( 'Ebioro payment canceled.', 'ebioro-payment-woocommerce' ) );
-				}
-			}
-
-			if ( 'transaction_failed' === $ebioro_payload_state ) {
-				$order->add_order_note( __( 'Ebioro payment failed to be delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
-			}
-		} else {
-			if ( 'expired' === $ebioro_order_status && 'pending' === $order->get_status() ) {
-				$order->update_status( 'cancelled', __( 'Ebioro payment expired.', 'ebioro-payment-woocommerce' ) );
-			}
+		// Reject events from the other environment (a live webhook while the gateway
+		// is in test mode, or vice versa) — they must not settle this order.
+		$order_mode = $order->get_meta( '_ebioro_mode' );
+		if ( $order_mode && $event_mode && $order_mode !== $event_mode ) {
+			self::log( 'Ignoring ' . esc_html( $event_mode ) . '-mode event for ' . esc_html( $order_mode ) . '-mode order ' . $order->get_id() );
+			return;
 		}
 
-		$statuses = array(
-			'customer_payment_status'  => esc_attr( $ebioro_order_status ),
-			'ebioro_settlement_status' => esc_attr( $ebioro_order_settlement_status ),
-		);
+		// Drop a stale replay: an event older than the last one we applied. Equal
+		// timestamps are allowed so a reconciliation poll can still complete an order
+		// whose webhook was missed.
+		$last_event_at = (int) $order->get_meta( '_ebioro_last_event_at' );
+		if ( $event_updated_at && $last_event_at && $event_updated_at < $last_event_at ) {
+			self::debug_log( 'Dropping stale event for order ' . $order->get_id() );
+			return;
+		}
 
-		$order->update_meta_data( '_ebioro_payment_state', $statuses );
-		$order->save();
+		// Per-order advisory lock so two concurrent deliveries can't both run
+		// payment_complete (double emails / double stock reduction). MySQL GET_LOCK
+		// SERIALISES rather than drops: a second event waits (up to the timeout) and
+		// is then applied — it is never discarded, which matters because Ebioro does
+		// not redeliver an event we answered 200 to. The lock is connection-scoped so
+		// it cannot leak a stale lock, and is namespaced by DB name so sibling sites
+		// on one MySQL server don't collide on the same order id. If the lock can't be
+		// taken (10s timeout / error) we still process rather than drop the event —
+		// losing a settlement event is worse than the residual risk this reopens: two
+		// truly-concurrent deliveries both reaching payment_complete() (duplicate
+		// completion email / stock reduction). That residual is itself backstopped by
+		// the awaiting-status guard in apply_payment_status(), and this fallback should
+		// essentially never be hit under normal load — so it is logged if it is.
+		global $wpdb;
+		$lock_name = substr( 'eb_' . md5( DB_NAME . '|' . $order->get_id() ), 0, 60 );
+		$got_lock  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, 10 ) );
+		if ( 1 !== $got_lock ) {
+			self::log( 'Could not acquire per-order lock for ' . $order->get_id() . ' (result ' . $got_lock . '); processing without it.' );
+		}
+
+		try {
+			// Re-read under the lock so status checks see the latest persisted state.
+			$order = wc_get_order( $order->get_id() );
+
+			if ( 'transaction_failed' === $payload_type ) {
+				$order->add_order_note( __( 'Ebioro payment failed to be delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
+			} elseif ( 'transaction_created' === $payload_type ) {
+				// WooCommerce already set the order to pending on creation — nothing to do.
+				$order->add_order_note( __( 'Ebioro payment was created and is awaiting the customer.', 'ebioro-payment-woocommerce' ) );
+			} else {
+				// transaction_updated OR a reconciliation snapshot: drive off status.
+				$this->apply_payment_status( $order, $order_status, $settlement_status );
+			}
+
+			$statuses = array(
+				'customer_payment_status'  => esc_attr( $order_status ),
+				'ebioro_settlement_status' => esc_attr( $settlement_status ),
+			);
+			$order->update_meta_data( '_ebioro_payment_state', $statuses );
+			if ( $event_updated_at ) {
+				$order->update_meta_data( '_ebioro_last_event_at', $event_updated_at );
+			}
+			$order->save();
+		} finally {
+			if ( 1 === $got_lock ) {
+				$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+			}
+		}
+	}
+
+	/**
+	 * Apply a customer-payment / settlement status pair to an order.
+	 *
+	 * @param WC_Order $order             Order object (already lock-protected, freshly read).
+	 * @param string   $order_status      Ebioro customer payment status.
+	 * @param string   $settlement_status Ebioro settlement status.
+	 */
+	protected function apply_payment_status( $order, $order_status, $settlement_status ) {
+		$awaiting = array( 'pending', 'on-hold', 'failed' );
+
+		switch ( $order_status ) {
+			case 'paid':
+				// Only transition while still awaiting payment. payment_complete() sets
+				// the status (processing/completed for virtual orders), the payment date
+				// and the transaction id, and fires woocommerce_payment_complete — so it
+				// MUST run before any manual status change, not after (a preceding
+				// update_status() would push the order out of the valid-for-completion
+				// set and neutralise it). The Ebioro payment reference is stored as the
+				// WooCommerce transaction id.
+				if ( in_array( $order->get_status(), $awaiting, true ) ) {
+					$order->payment_complete( $order->get_meta( '_ebioro_payment_id' ) );
+					$order->add_order_note( __( 'Customer payment received via Ebioro.', 'ebioro-payment-woocommerce' ) );
+				}
+
+				// Settlement notes, guarded so a replay/poll does not repeat them.
+				if ( 'processing' === $settlement_status && ! $order->get_meta( '_ebioro_settlement_initiated_note' ) ) {
+					$order->add_order_note( __( 'Ebioro payment has been initiated to your merchant account.', 'ebioro-payment-woocommerce' ) );
+					$order->update_meta_data( '_ebioro_settlement_initiated_note', 1 );
+				}
+				if ( 'paid' === $settlement_status && ! $order->get_meta( '_ebioro_settlement_delivered_note' ) ) {
+					$order->add_order_note( __( 'Ebioro payment has been delivered to your merchant account.', 'ebioro-payment-woocommerce' ) );
+					$order->update_meta_data( '_ebioro_settlement_delivered_note', 1 );
+				}
+				break;
+
+			case 'underpaid':
+				// Put on hold only from a still-awaiting state; never disturb a paid order.
+				if ( in_array( $order->get_status(), array( 'pending', 'failed' ), true ) ) {
+					$order->update_status( 'on-hold', __( 'Ebioro payment has been underpaid by customer.', 'ebioro-payment-woocommerce' ) );
+				}
+				break;
+
+			case 'expired':
+			case 'canceled':
+				// Cancel only an order that was never paid. A paid/processing/completed
+				// order (paid here or through another gateway) is left untouched; we only
+				// note the event for the merchant.
+				if ( $order->has_status( array( 'pending', 'failed' ) ) ) {
+					$note = ( 'expired' === $order_status )
+						? __( 'Ebioro payment expired.', 'ebioro-payment-woocommerce' )
+						: __( 'Ebioro payment canceled.', 'ebioro-payment-woocommerce' );
+					$order->update_status( 'cancelled', $note );
+				} else {
+					$order->add_order_note(
+						sprintf(
+							/* translators: 1: Ebioro payment status, 2: current WooCommerce order status. */
+							__( 'Ebioro reported "%1$s" but the order is already "%2$s" — no change made.', 'ebioro-payment-woocommerce' ),
+							$order_status,
+							$order->get_status()
+						)
+					);
+				}
+				break;
+		}
 	}
 
 	/**
