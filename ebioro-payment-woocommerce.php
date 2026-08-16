@@ -336,12 +336,11 @@ function ebioro_admin_notice_currency() {
 	if ( ! ebioro_should_show_admin_notice() ) {
 		return;
 	}
-	$currencies = array(
-		'USD',
-		'EUR',
-		'CAD',
-		'GBP',
-	);
+	// Single source of truth — the gateway class (loaded inside the same WooCommerce
+	// guard that registers this notice) owns the supported-currency list.
+	$currencies = class_exists( 'Ebioro_Payment_Gateway' )
+		? Ebioro_Payment_Gateway::SUPPORTED_CURRENCIES
+		: array( 'USD', 'EUR', 'CAD', 'GBP' );
 	if ( in_array( get_woocommerce_currency(), $currencies, true ) ) {
 		return;
 	}

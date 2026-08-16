@@ -283,6 +283,25 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 
 		$this->init_api();
 
+		// Reuse an already-open payment for this order rather than minting a second one.
+		// This covers a customer returning to "Pay for order", and — importantly across
+		// this upgrade — an order whose original payment was created under the previous
+		// idempotency-key format: without this, a new key would create a duplicate
+		// payment, overwrite _ebioro_payment_id, and the original payment's webhook
+		// would then be rejected by the payment-id binding check and lost. Only reused
+		// when amount and currency still match (the cart may have changed).
+		$existing = $this->get_open_payment_for_order( $order );
+		if ( $existing ) {
+			$redirect = $this->payment_redirect_url( $existing );
+			if ( '' !== $redirect ) {
+				self::debug_log( 'Reusing open payment ' . ( $existing['id'] ?? '' ) . ' for order ' . $order->get_id() );
+				return array(
+					'result'   => 'success',
+					'redirect' => $redirect,
+				);
+			}
+		}
+
 		// Create a new charge. Only order_id is needed to resolve the order on the
 		// webhook; order_key is deliberately NOT sent — it is a capability secret
 		// for the order-pay/received pages and must not travel through the API or logs.
@@ -324,16 +343,25 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 			return array( 'result' => 'failure' );
 		}
 
+		// Prefer the tokenless short link over hostedUrl: hostedUrl carries a
+		// merchant-scoped auth token in the query string, which would then sit in the
+		// customer's browser history and referrer headers. A successful create with no
+		// usable redirect URL is a failure — never hand WooCommerce a null redirect.
+		$redirect = $this->payment_redirect_url( $result[1] );
+		if ( '' === $redirect ) {
+			self::log( 'Payment created but no redirect URL returned for order ' . $order->get_id(), 'error' );
+			wc_add_notice(
+				__( 'We could not start your Ebioro payment. Please try again or choose another payment method.', 'ebioro-payment-woocommerce' ),
+				'error'
+			);
+			return array( 'result' => 'failure' );
+		}
+
 		$order->update_meta_data( '_ebioro_payment_id', $result[1]['id'] );
 		// Record the mode the payment was created in so webhooks signed by the other
 		// environment (test vs live) can be rejected in _update_order_status().
 		$order->update_meta_data( '_ebioro_mode', self::is_test_mode() ? 'test' : 'live' );
 		$order->save();
-
-		// Prefer the tokenless short link over hostedUrl: hostedUrl carries a
-		// merchant-scoped auth token in the query string, which would then sit in the
-		// customer's browser history and referrer headers.
-		$redirect = ! empty( $result[1]['shortUrl'] ) ? $result[1]['shortUrl'] : $result[1]['hostedUrl'];
 
 		return array(
 			'result' => 'success',
@@ -350,6 +378,57 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	protected function get_idempotency_key( $order ) {
 		$seed = home_url() . '|' . $order->get_id() . '|' . $order->get_order_key();
 		return 'wc-' . substr( hash( 'sha256', $seed ), 0, 40 );
+	}
+
+	/**
+	 * Return the order's currently-attached Ebioro payment if it is still open AND
+	 * still matches the order's amount and currency, else null.
+	 *
+	 * @param WC_Order $order Order object.
+	 * @return array|null Payment data array, or null.
+	 */
+	protected function get_open_payment_for_order( $order ) {
+		$payment_id = $order->get_meta( '_ebioro_payment_id' );
+		if ( empty( $payment_id ) ) {
+			return null;
+		}
+
+		$result = Ebioro_API_Handler::send_request( '/payments/' . rawurlencode( $payment_id ) );
+		if ( empty( $result[0] ) || ! is_array( $result[1] ) ) {
+			return null;
+		}
+		$payment = $result[1];
+
+		if ( ! isset( $payment['status'] ) || 'open' !== $payment['status'] ) {
+			return null;
+		}
+
+		// Only reuse if amount + currency still match the order (the cart may have
+		// changed since the payment was created).
+		$want_amount      = (int) round( (float) $order->get_total() * 100 );
+		$existing_amount  = isset( $payment['amount']['value'] ) ? (int) round( (float) $payment['amount']['value'] ) : null;
+		$existing_curr    = isset( $payment['amount']['currency'] ) ? strtoupper( $payment['amount']['currency'] ) : '';
+		if ( $existing_amount !== $want_amount || $existing_curr !== strtoupper( $order->get_currency() ) ) {
+			return null;
+		}
+
+		return $payment;
+	}
+
+	/**
+	 * Resolve the redirect URL for a payment, preferring the tokenless short link.
+	 *
+	 * @param array $payment Payment data array.
+	 * @return string URL, or '' when none is available.
+	 */
+	protected function payment_redirect_url( $payment ) {
+		if ( ! empty( $payment['shortUrl'] ) ) {
+			return $payment['shortUrl'];
+		}
+		if ( ! empty( $payment['hostedUrl'] ) ) {
+			return $payment['hostedUrl'];
+		}
+		return '';
 	}
 
 	/**
@@ -404,47 +483,54 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 	public function check_orders() {
 		$this->init_api();
 
-		$page = 1;
-		$per_page = 50;
-
-		do {
-			$orders = wc_get_orders(
-				array(
-					'status'     => array( 'wc-pending' ),
-					'limit'      => $per_page,
-					'page'       => $page,
-					'orderby'    => 'ID',
-					'order'      => 'ASC',
-					'meta_query' => array(
-						array(
-							'key'     => '_ebioro_payment_id',
-							'compare' => 'EXISTS',
-						),
+		// Snapshot the ids of all still-pending Ebioro orders FIRST, then process the
+		// fixed list. Processing an order can move it out of `wc-pending` (complete or
+		// cancel it); paginating the live query while it mutates would let orders that
+		// shift across a page boundary be skipped. The cap bounds a single cron run;
+		// anything beyond it is picked up on the next run (and logged).
+		$cap = 500;
+		$order_ids = wc_get_orders(
+			array(
+				'status'     => array( 'wc-pending' ),
+				'limit'      => $cap,
+				'orderby'    => 'ID',
+				'order'      => 'ASC',
+				'return'     => 'ids',
+				'meta_query' => array(
+					array(
+						'key'     => '_ebioro_payment_id',
+						'compare' => 'EXISTS',
 					),
-				)
-			);
+				),
+			)
+		);
 
-			foreach ( $orders as $order ) {
-				$payment_id = $order->get_meta( '_ebioro_payment_id' );
-				if ( empty( $payment_id ) ) {
-					continue;
-				}
+		if ( count( $order_ids ) >= $cap ) {
+			self::log( "Reconciliation processed the first {$cap} pending orders this run; the remainder will be handled on the next run." );
+		}
 
-				usleep( 300000 );  // Ensure we don't hit the rate limit.
-				$result = Ebioro_API_Handler::send_request( '/payments/' . rawurlencode( $payment_id ) );
-
-				if ( ! $result[0] ) {
-					self::log( 'Failed to fetch order updates for: ' . $order->get_id() );
-					continue;
-				}
-
-				$data = $result[1];
-				self::debug_log( 'Reconciling order ' . $order->get_id() . ': status=' . ( $data['status'] ?? '' ) . ' settlement=' . ( $data['settlement_status'] ?? '' ) );
-				$this->_update_order_status( $order, $data );
+		foreach ( $order_ids as $order_id ) {
+			$order = wc_get_order( $order_id );
+			if ( ! $order ) {
+				continue;
+			}
+			$payment_id = $order->get_meta( '_ebioro_payment_id' );
+			if ( empty( $payment_id ) ) {
+				continue;
 			}
 
-			++$page;
-		} while ( count( $orders ) === $per_page );
+			usleep( 300000 );  // Ensure we don't hit the rate limit.
+			$result = Ebioro_API_Handler::send_request( '/payments/' . rawurlencode( $payment_id ) );
+
+			if ( ! $result[0] ) {
+				self::log( 'Failed to fetch order updates for: ' . $order->get_id() );
+				continue;
+			}
+
+			$data = $result[1];
+			self::debug_log( 'Reconciling order ' . $order->get_id() . ': status=' . ( $data['status'] ?? '' ) . ' settlement=' . ( $data['settlement_status'] ?? '' ) );
+			$this->_update_order_status( $order, $data );
+		}
 	}
 
 	/**
@@ -646,18 +732,21 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 			return;
 		}
 
-		// Per-order lock so two concurrent deliveries can't both run payment_complete
-		// (double emails / double stock reduction). Self-heals after 30s if a request
-		// dies mid-flight.
-		$lock_key = 'ebioro_lock_' . $order->get_id();
-		if ( get_transient( $lock_key ) ) {
-			self::debug_log( 'Order ' . $order->get_id() . ' locked by a concurrent event — skipping.' );
-			return;
-		}
-		set_transient( $lock_key, 1, 30 );
+		// Per-order advisory lock so two concurrent deliveries can't both run
+		// payment_complete (double emails / double stock reduction). MySQL GET_LOCK
+		// SERIALISES rather than drops: a second event waits (up to the timeout) and
+		// is then applied — it is never discarded, which matters because Ebioro does
+		// not redeliver an event we answered 200 to. The lock is connection-scoped so
+		// it cannot leak a stale lock, and is namespaced by DB name so sibling sites
+		// on one MySQL server don't collide on the same order id. If the lock can't be
+		// taken (timeout/error) we still process, accepting at worst a duplicate note
+		// rather than a lost settlement event.
+		global $wpdb;
+		$lock_name = substr( 'eb_' . md5( DB_NAME . '|' . $order->get_id() ), 0, 60 );
+		$got_lock  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, 10 ) );
 
 		try {
-			// Re-read inside the lock so status checks see the latest persisted state.
+			// Re-read under the lock so status checks see the latest persisted state.
 			$order = wc_get_order( $order->get_id() );
 
 			if ( 'transaction_failed' === $payload_type ) {
@@ -680,7 +769,9 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 			}
 			$order->save();
 		} finally {
-			delete_transient( $lock_key );
+			if ( 1 === $got_lock ) {
+				$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+			}
 		}
 	}
 
