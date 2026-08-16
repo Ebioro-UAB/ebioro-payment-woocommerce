@@ -404,7 +404,12 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 		}
 
 		// Only reuse if amount + currency still match the order (the cart may have
-		// changed since the payment was created).
+		// changed since the payment was created). Both sides are compared in minor
+		// units (cents). NOTE the deliberate asymmetry: get_total() is major units so
+		// it is multiplied by 100, but payment.amount.value on a GET response is
+		// ALREADY in minor units (it echoes the smallest-unit integer sent at create
+		// time via convert_to_smallest_unit()), so it must NOT be multiplied. Do not
+		// "fix" this into symmetry — that would break reuse matching.
 		$want_amount      = (int) round( (float) $order->get_total() * 100 );
 		$existing_amount  = isset( $payment['amount']['value'] ) ? (int) round( (float) $payment['amount']['value'] ) : null;
 		$existing_curr    = isset( $payment['amount']['currency'] ) ? strtoupper( $payment['amount']['currency'] ) : '';
@@ -739,11 +744,18 @@ class Ebioro_Payment_Gateway extends WC_Payment_Gateway {
 		// not redeliver an event we answered 200 to. The lock is connection-scoped so
 		// it cannot leak a stale lock, and is namespaced by DB name so sibling sites
 		// on one MySQL server don't collide on the same order id. If the lock can't be
-		// taken (timeout/error) we still process, accepting at worst a duplicate note
-		// rather than a lost settlement event.
+		// taken (10s timeout / error) we still process rather than drop the event —
+		// losing a settlement event is worse than the residual risk this reopens: two
+		// truly-concurrent deliveries both reaching payment_complete() (duplicate
+		// completion email / stock reduction). That residual is itself backstopped by
+		// the awaiting-status guard in apply_payment_status(), and this fallback should
+		// essentially never be hit under normal load — so it is logged if it is.
 		global $wpdb;
 		$lock_name = substr( 'eb_' . md5( DB_NAME . '|' . $order->get_id() ), 0, 60 );
 		$got_lock  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, 10 ) );
+		if ( 1 !== $got_lock ) {
+			self::log( 'Could not acquire per-order lock for ' . $order->get_id() . ' (result ' . $got_lock . '); processing without it.' );
+		}
 
 		try {
 			// Re-read under the lock so status checks see the latest persisted state.
