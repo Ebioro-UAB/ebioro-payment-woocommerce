@@ -8,7 +8,7 @@ const settings = getSetting( 'ebioro_data', {} );
 
 const defaultLabel = __(
 	'Ebioro Payments',
-	'woo-gutenberg-products-block'
+	'ebioro-payment-woocommerce'
 );
 
 const label = decodeEntities( settings.title ) || defaultLabel;

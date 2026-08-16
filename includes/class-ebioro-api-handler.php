@@ -80,7 +80,7 @@ class Ebioro_API_Handler {
 	 */
 	public static function send_request( $endpoint, $params = array(), $method = 'GET', $extra_headers = array() ) {
 
-		if ( defined( 'WP_DEBUG' ) ) {
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			self::log( 'Ebioro Request Args for ' . esc_html( $endpoint ) . ': ' . wp_json_encode( $params ) );
 		}
 
@@ -105,7 +105,12 @@ class Ebioro_API_Handler {
 
 		$response = wp_remote_request( esc_url_raw( $url ), $args );
 
-		self::log( 'the body to send: ' . esc_html( wp_json_encode( $args, true ) ) );
+		// Never log $args — it contains the X-Digest-Key and X-Digest-Signature
+		// authentication headers. Log only the (non-secret) request body, and only
+		// when WP_DEBUG is actually on.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			self::log( 'Request body: ' . ( isset( $args['body'] ) ? $args['body'] : '' ) );
+		}
 
 		if ( is_wp_error( $response ) ) {
 			self::log( 'WP response error: ' . $response->get_error_message() );
@@ -123,7 +128,17 @@ class Ebioro_API_Handler {
 			if ( in_array( $status_code, array( 200, 201 ), true ) ) {
 				return array( true, $result );
 			} else {
-				$e = empty( $result[1]['message'] ) ? '' : $result[1]['message'];
+				// $result is the decoded response body (an associative array). The API
+				// returns the human-readable error under 'message' (validation) or
+				// 'reason' (custom errors) — not under a numeric [1] offset.
+				$e = '';
+				if ( is_array( $result ) ) {
+					if ( ! empty( $result['message'] ) ) {
+						$e = is_array( $result['message'] ) ? implode( '; ', $result['message'] ) : $result['message'];
+					} elseif ( ! empty( $result['reason'] ) ) {
+						$e = $result['reason'];
+					}
+				}
 
 				$errors = array(
 					400 => 'Error response from API: ' . $e,
@@ -194,8 +209,8 @@ class Ebioro_API_Handler {
 
 		$args['redirectUrl'] = $redirect;
 
-		$data         = get_option( 'woocommerce_ebioro_settings' );
-		$args['locale'] = $data['api_locale'];
+		$data           = (array) get_option( 'woocommerce_ebioro_settings', array() );
+		$args['locale'] = $data['api_locale'] ?? 'en';
 
 		// Set optional parameters in $args.
 		$optional_params = array( 'metadata', 'cancelUrl', 'webhookUrl' );
@@ -237,20 +252,18 @@ class Ebioro_API_Handler {
 
 		$body = 'GET' != $method ? wp_json_encode( $params, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) : '';
 
-		// Logging the string to be signed.
 		$tosign = $path . $timestamp . $method . $body;
-
-		self::log( 'String to be signed: ' . esc_html( wp_json_encode( $tosign, true ) ) );
 
 		// Generate signature.
 		$signature = hash_hmac( 'sha256', $tosign, self::$api_secret );
 
-		// Prepare headers.
+		// Prepare headers. Timestamp cast to string — some HTTP transports/proxies
+		// reject a non-string header value.
 		$headers = array(
 			'Content-Type'          => 'application/json',
 			'X-Digest-Key'          => self::$api_key,
 			'X-Digest-Signature'    => $signature,
-			'X-Digest-Timestamp'    => $timestamp,
+			'X-Digest-Timestamp'    => (string) $timestamp,
 		);
 
 		return $headers;
@@ -260,9 +273,9 @@ class Ebioro_API_Handler {
 	 * Get the API URL
 	 */
 	private static function api_url() {
-		$data = get_option( 'woocommerce_ebioro_settings' );
-		$url = ( 'yes' === $data['test_mode'] ) ? self::$test_api_url : self::$api_url;
-		return $url;
+		$data = (array) get_option( 'woocommerce_ebioro_settings', array() );
+		$test_mode = isset( $data['test_mode'] ) && 'yes' === $data['test_mode'];
+		return $test_mode ? self::$test_api_url : self::$api_url;
 	}
 
 	/**
