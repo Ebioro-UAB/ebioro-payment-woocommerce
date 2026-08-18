@@ -4,7 +4,7 @@ Tags: woocommerce, crypto, cryptocurrency, payments, payment gateway
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.2
-Stable tag: 1.2.1
+Stable tag: 1.3.0
 License: GPL-3.0+
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -102,6 +102,19 @@ An Ebioro merchant account is required. Service terms and data handling:
 All JavaScript ships in human-readable form: the uncompressed sources for every minified file are included alongside them (`assets/js/admin/payment.js` next to `payment.min.js`, `assets/js/frontend/blocks.js` next to `blocks.min.js`). The minified builds are produced with webpack from the same sources. The complete development setup is maintained by Ebioro UAB and available on request via support@ebioro.com.
 
 == Changelog ==
+
+= 1.3.0 =
+Security & reliability hardening (addresses an external code review).
+* Fixed: paid orders now correctly record the payment date and Ebioro payment reference (transaction ID) and fire WooCommerce's payment-complete event, so Analytics, subscriptions and accounting/ERP integrations receive every order. Virtual/downloadable-only orders auto-complete again.
+* Security: an "expired", "canceled" or "underpaid" notification can no longer cancel or hold an order that has already been paid — such events on a paid order are now only recorded as an order note.
+* Security: webhooks are now bound to the payment attached to the order and to the Ebioro payment method; events for a superseded payment, another gateway's order, or the wrong environment (test vs live) are ignored.
+* Security: API credentials and the payment-page link are no longer written to the debug log; the debug log now honours WP_DEBUG. API key/secret fields are masked in the admin.
+* Fixed: no more fatal error on wp-admin when WooCommerce is deactivated; the gateway is now detected reliably on multisite/network-activated stores.
+* Fixed: charges use the order's currency; the gateway hides itself on unsupported store currencies.
+* Fixed: failed payment starts now show the customer a clear checkout error instead of a silent failure.
+* Fixed: block checkout no longer registers the payment method twice; translations load from the correct text domain.
+* Fixed: hourly reconciliation now paginates (no longer capped at 10 orders) and correctly applies polled statuses; removed dead archival code.
+* Fixed: admin notices are shown only to shop managers on stores that have enabled Ebioro; admin script only loads on the settings screen.
 
 = 1.2.1 =
 * Webhook endpoint now returns a short plain-text response (e.g. "OK") instead of a full HTML page, so the delivery log shows a readable server response. No change to status codes or behaviour.

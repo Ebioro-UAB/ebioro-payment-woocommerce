@@ -70,6 +70,10 @@ final class Ebioro_Gateway_Blocks_Support extends AbstractPaymentMethodType {
 			);
 		$script_url        = Ebioro_Payment_Gateway::plugin_url() . $script_path;
 
+		// Ship exactly one bundle. blocks.js and blocks.min.js were the same webpack
+		// output; enqueuing both registered the 'ebioro' payment method twice. The
+		// webpack build (blocks.js, with its generated blocks.asset.php deps/version)
+		// is the canonical one.
 		wp_register_script(
 			'wc-ebioro-payments-blocks',
 			$script_url,
@@ -78,20 +82,11 @@ final class Ebioro_Gateway_Blocks_Support extends AbstractPaymentMethodType {
 			true
 		);
 
-		// Enqueue your custom blocks.js file.
-		wp_enqueue_script(
-			'wc-ebioro-custom-blocks',
-			Ebioro_Payment_Gateway::plugin_url() . '/assets/js/frontend/blocks.min.js',
-			array( 'wc-ebioro-payments-blocks' ),
-			'1.0.0',
-			true
-		);
-
 		if ( function_exists( 'wp_set_script_translations' ) ) {
-			wp_set_script_translations( 'wc-ebioro-payments-blocks', 'woocommerce-gateway-ebioro', Ebioro_Payment_Gateway::plugin_abspath() . 'languages/' );
+			wp_set_script_translations( 'wc-ebioro-payments-blocks', 'ebioro-payment-woocommerce', Ebioro_Payment_Gateway::plugin_abspath() . 'languages/' );
 		}
 
-		return array( 'wc-ebioro-payments-blocks', 'wc-ebioro-custom-blocks' );
+		return array( 'wc-ebioro-payments-blocks' );
 	}
 
 	/**

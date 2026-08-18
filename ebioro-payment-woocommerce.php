@@ -4,7 +4,7 @@
  * Description: Stablecoin (USDC) Payment Processor - A payment gateway that allows your customers to pay with stablecoins via Ebioro.
  * Author: Ebioro UAB
  * Author URI: https://www.ebioro.com/
- * Version: 1.2.1
+ * Version: 1.3.0
  * Text domain: ebioro-payment-woocommerce
  * Domain Path: /languages
  * License: GPL-3.0+
@@ -23,24 +23,48 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function ebioro_init_gateway() {
 
-	if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
-		require_once plugin_dir_path( __FILE__ ) . 'class-wc-gateway-ebioro.php';
-		// add_action('init', 'ebioro_wc_register_settlement_status');
-		// add_filter('woocommerce_valid_order_statuses_for_payment', 'ebioro_wc_status_valid_for_payment', 10, 2);
-		// add_filter('wc_order_statuses', 'ebioro_wc_add_status');
-		add_action( 'ebioro_check_orders', 'ebioro_wc_check_orders' );
-		add_filter( 'woocommerce_payment_gateways', 'ebioro_wc_add_ebioro_class' );
-		add_action( 'woocommerce_admin_order_data_after_order_details', 'ebioro_order_meta_general' );
-		add_action( 'woocommerce_order_details_after_order_table', 'ebioro_order_meta_general' );
-		add_filter( 'plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-woocommerce.php', 'ebioro_add_setting_link' );
-		add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'ebioro_add_setting_link' );
-		add_filter( 'network_admin_plugin_action_links_' . plugin_basename( __FILE__ ), 'ebioro_add_setting_link' );
-		add_action( 'admin_enqueue_scripts', 'ebioro_enqueue' );
-		// add_filter( 'network_admin_plugin_action_links_ebioro-payment-woocommerce/ebioro-payment-woocommerce.php', 'ebioro_add_setting_link' );
-		// add_action( 'admin_enqueue_scripts', 'ebioro_enqueue' );
+	// Detect WooCommerce by the class it exports, not by a hard-coded plugin path.
+	// The path check missed network-activated multisite (active_sitewide_plugins)
+	// and any non-default install directory, and left the block integration to
+	// fatal on an undefined class.
+	if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
+		return;
 	}
+
+	require_once plugin_dir_path( __FILE__ ) . 'class-wc-gateway-ebioro.php';
+	add_action( 'ebioro_check_orders', 'ebioro_wc_check_orders' );
+	add_filter( 'woocommerce_payment_gateways', 'ebioro_wc_add_ebioro_class' );
+	add_action( 'woocommerce_admin_order_data_after_order_details', 'ebioro_order_meta_general' );
+	add_action( 'woocommerce_order_details_after_order_table', 'ebioro_order_meta_general' );
+	add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'ebioro_add_setting_link' );
+	add_filter( 'network_admin_plugin_action_links_' . plugin_basename( __FILE__ ), 'ebioro_add_setting_link' );
+	add_action( 'admin_enqueue_scripts', 'ebioro_enqueue' );
+
+	// Admin notices are registered here (inside the WooCommerce guard) so they never
+	// run — and never call WooCommerce functions — when WooCommerce is inactive.
+	add_action( 'admin_notices', 'ebioro_admin_notice_api_keys' );
+	add_action( 'admin_notices', 'ebioro_admin_notice_test_mode' );
+	add_action( 'admin_notices', 'ebioro_admin_notice_currency' );
 }
 add_action( 'plugins_loaded', 'ebioro_init_gateway' );
+
+/**
+ * Shared gate for admin notices: only show to users who manage WooCommerce, only
+ * on wp-admin, and only once the gateway has actually been enabled — so stores that
+ * installed but never adopted Ebioro don't see red error banners.
+ *
+ * @return bool True when notices may be rendered.
+ */
+function ebioro_should_show_admin_notice() {
+	if ( ! is_admin() || ! function_exists( 'get_woocommerce_currency' ) ) {
+		return false;
+	}
+	if ( ! current_user_can( 'manage_woocommerce' ) ) {
+		return false;
+	}
+	$settings = (array) get_option( 'woocommerce_ebioro_settings', array() );
+	return isset( $settings['enabled'] ) && 'yes' === $settings['enabled'];
+}
 
 /**
  * Activates the custom event scheduling for 'ebioro_check_orders'.
@@ -93,8 +117,13 @@ function ebioro_add_setting_link( $actions ) {
 /**
  * Enqueue scripts
  */
-function ebioro_enqueue() {
-	wp_register_script( 'ebioro-payment', plugin_dir_url( __FILE__ ) . 'assets/js/admin/payment.min.js', null, '1.0.0', true );
+function ebioro_enqueue( $hook = '' ) {
+	// Only load on the WooCommerce settings screen — the script reaches for the
+	// gateway's own settings fields and throws on every other admin page otherwise.
+	if ( 'woocommerce_page_wc-settings' !== $hook ) {
+		return;
+	}
+	wp_register_script( 'ebioro-payment', plugin_dir_url( __FILE__ ) . 'assets/js/admin/payment.js', null, '1.0.1', true );
 	wp_enqueue_script( 'ebioro-payment' );
 }
 
@@ -102,7 +131,11 @@ function ebioro_enqueue() {
  * The Blocks support
  */
 function ebioro_blocks_support() {
-	if ( class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) ) {
+	// Both guards matter: the block base class (WooCommerce Blocks active) AND our
+	// own gateway class (only loaded when WooCommerce itself is active). Without the
+	// second, a store with Blocks present but WooCommerce off would fatal here.
+	if ( class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' )
+		&& class_exists( 'Ebioro_Payment_Gateway' ) ) {
 		require_once 'includes/blocks/class-wc-gateway-ebioro-blocks-support.php';
 		add_action(
 			'woocommerce_blocks_payment_method_type_registration',
@@ -132,8 +165,11 @@ function ebioro_wc_add_ebioro_class( $methods ) {
 }
 
 function ebioro_wc_check_orders() {
-	$gateway = WC()->payment_gateways()->payment_gateways()['ebioro'];
-	return $gateway->check_orders();
+	$gateways = WC()->payment_gateways()->payment_gateways();
+	if ( ! isset( $gateways['ebioro'] ) ) {
+		return;
+	}
+	return $gateways['ebioro']->check_orders();
 }
 
 /**
@@ -198,9 +234,13 @@ function ebioro_order_meta_general( $order ) {
  * Add admin screen notice if API keys are not set
  */
 function ebioro_admin_notice_api_keys() {
-	$data        = get_option( 'woocommerce_ebioro_settings' );
-	$api_key     = $data['api_key'];
-	$api_secret  = $data['api_secret'];
+	if ( ! ebioro_should_show_admin_notice() ) {
+		return;
+	}
+	$data        = (array) get_option( 'woocommerce_ebioro_settings', array() );
+	$test_mode   = ( isset( $data['test_mode'] ) && 'yes' === $data['test_mode'] );
+	$api_key     = $test_mode ? ( $data['test_api_key'] ?? '' ) : ( $data['api_key'] ?? '' );
+	$api_secret  = $test_mode ? ( $data['test_api_secret'] ?? '' ) : ( $data['api_secret'] ?? '' );
 
 	if ( $api_key && $api_secret ) {
 		return;
@@ -239,14 +279,16 @@ function ebioro_admin_notice_api_keys() {
 
 	<?php
 }
-add_action( 'admin_notices', 'ebioro_admin_notice_api_keys' );
 
 /**
  * Add admin screen notice if Test Mode is active
  */
 function ebioro_admin_notice_test_mode() {
-	$data = get_option( 'woocommerce_ebioro_settings' );
-	$test_mode = $data['test_mode'];
+	if ( ! ebioro_should_show_admin_notice() ) {
+		return;
+	}
+	$data = (array) get_option( 'woocommerce_ebioro_settings', array() );
+	$test_mode = $data['test_mode'] ?? 'no';
 
 	if ( 'no' === $test_mode ) {
 		return;
@@ -286,19 +328,20 @@ function ebioro_admin_notice_test_mode() {
 
 	<?php
 }
-add_action( 'admin_notices', 'ebioro_admin_notice_test_mode' );
 
 /**
  * Admin screen notices if currency is not in supported list
  */
 function ebioro_admin_notice_currency() {
-	$currencies = array(
-		'USD',
-		'EUR',
-		'CAD',
-		'GBP',
-	);
-	if ( in_array( get_woocommerce_currency(), $currencies ) ) {
+	if ( ! ebioro_should_show_admin_notice() ) {
+		return;
+	}
+	// Single source of truth — the gateway class (loaded inside the same WooCommerce
+	// guard that registers this notice) owns the supported-currency list.
+	$currencies = class_exists( 'Ebioro_Payment_Gateway' )
+		? Ebioro_Payment_Gateway::SUPPORTED_CURRENCIES
+		: array( 'USD', 'EUR', 'CAD', 'GBP' );
+	if ( in_array( get_woocommerce_currency(), $currencies, true ) ) {
 		return;
 	}
 
@@ -338,4 +381,3 @@ function ebioro_admin_notice_currency() {
 
 	<?php
 }
-add_action( 'admin_notices', 'ebioro_admin_notice_currency' );
