@@ -45,3 +45,7 @@ package-lock.json
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# Claude Code / MCP local state — never commit
+.claude/
+.mcp.json
